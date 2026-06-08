@@ -1,0 +1,72 @@
+# Movie CRUD API Testing
+# Base URL: https://localhost:5925/api/movies
+
+### 1. GET all movies
+GET https://localhost:5925/api/movies
+
+### 2. GET movie by ID (exists)
+GET https://localhost:5925/api/movies/1
+
+### 3. GET movie by ID (not found - 404)
+GET https://localhost:5925/api/movies/999
+
+### 4. CREATE new movie (POST)
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "Inception",
+  "description": "A thief who steals corporate secrets through dream-sharing technology",
+  "genre": "Sci-Fi",
+  "durationInMinutes": 148,
+  "releaseDate": "2010-07-16",
+  "posterUrl": "https://example.com/inception.jpg"
+}
+
+### 5. CREATE movie with invalid data (bad request - 400)
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "",
+  "genre": "Action"
+}
+
+### 6. UPDATE movie (PUT - full update)
+PUT https://localhost:5925/api/movies/1
+Content-Type: application/json
+
+{
+  "title": "The Shawshank Redemption - Updated",
+  "description": "Updated description",
+  "genre": "Drama",
+  "durationInMinutes": 142,
+  "releaseDate": "1994-09-23",
+  "posterUrl": "https://example.com/shawshank.jpg"
+}
+
+### 7. UPDATE non-existent movie (404)
+PUT https://localhost:5925/api/movies/999
+Content-Type: application/json
+
+{
+  "title": "Ghost Movie"
+}
+
+### 8. PARTIAL UPDATE movie (PATCH)
+PATCH https://localhost:5925/api/movies/2
+Content-Type: application/json
+
+{
+  "genre": "Crime",
+  "durationInMinutes": 165
+}
+
+### 9. DELETE movie by ID
+DELETE https://localhost:5925/api/movies/1
+
+### 10. DELETE non-existent movie (404)
+DELETE https://localhost:5925/api/movies/999
+
+### 11. Verify movie was deleted (should not exist)
+GET https://localhost:5925/api/movies/1

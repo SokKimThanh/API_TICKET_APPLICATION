@@ -1,0 +1,32 @@
+# For more info on HTTP files go to https://aka.ms/vs/httpfile
+### Test Hello World (HTTP -> should redirect to HTTPS)
+GET http://localhost:5924/
+
+### Test Hello World (HTTPS)
+GET https://localhost:5925/
+
+### Test Circuit Breaker (giả lập nhiều request đồng thời)
+GET https://localhost:5925/api/test?load=heavy
+
+### Test Input Validation (query chứa XSS - đã URL-encode)
+GET http://localhost:5924/api/test?query=%3Cscript%3Ealert(%27xss%27)%3C%2Fscript%3E
+
+### Test Input Validation (query chứa SQL injection - đã URL-encode space)
+GET http://localhost:5924/api/test?query=DROP%20TABLE%20Users
+
+### Test Secure Query (không có flag secure -> allowed)
+GET http://localhost:5924/api/test
+
+### Test Secure Query (có flag secure=false -> should be blocked with 400)
+GET http://localhost:5924/api/test?secure=false
+
+### Test Secure Query (có flag secure=true -> allowed; try HTTPS)
+GET https://localhost:5925/api/test?secure=true
+
+### Test Delay Request (giả lập trễ 2000ms)
+GET https://localhost:5925/api/test?delay=2000
+
+# Notes:
+# - If you test the HTTP endpoints (port 5924) you should see redirects to https://localhost:5925 for endpoints that trigger UseHttpsRedirection.
+# - Some clients (including the VS HTTP file runner) may not follow redirects automatically — inspect the response status and the `Location` header.
+# - All queries with spaces or special characters are URL-encoded to avoid HTTP parsing errors.

@@ -1,0 +1,509 @@
+###############################################################################
+#
+# REQUEST FILE: request_movies.http
+# 
+# Mục Đích: Test tất cả endpoints của MoviesController
+# 
+# Sử Dụng:
+#   - Visual Studio: Mở file, click "Send Request" trên mỗi endpoint
+#   - Postman: Import toàn bộ requests
+#   - cURL: Copy & chạy lệnh từ powershell
+#
+# API Base URL: https://localhost:5925
+# Database: TicketManagementDB (LocalDB)
+#
+# Lưu Ý:
+#   - HTTPS port: 5925 (HTTP: 5924 sẽ redirect đến HTTPS)
+#   - Middleware chạy: Circuit Breaker, Input Validation, Delay, Logging
+#   - Response format: { success, message, data, timestamp }
+#
+###############################################################################
+
+# ============================================================================
+# 1. GET ALL MOVIES - Lấy tất cả phim (với pagination)
+# ============================================================================
+
+### 1.1 Lấy tất cả phim (trang 1, 10 phim/trang)
+GET https://localhost:5925/api/movies
+Accept: application/json
+
+### 1.2 Lấy phim trang 2, 20 phim/trang
+GET https://localhost:5925/api/movies?pageNumber=2&pageSize=20
+Accept: application/json
+
+### 1.3 Lấy phim trang 1, 5 phim/trang
+GET https://localhost:5925/api/movies?pageNumber=1&pageSize=5
+Accept: application/json
+
+# ============================================================================
+# 2. GET MOVIE BY ID - Lấy phim theo ID
+# ============================================================================
+
+### 2.1 Lấy phim thành công (ID = 1)
+GET https://localhost:5925/api/movies/1
+Accept: application/json
+
+### 2.2 Lấy phim thành công (ID = 2)
+GET https://localhost:5925/api/movies/2
+Accept: application/json
+
+### 2.3 Phim không tồn tại (ID = 999) → 404 Not Found
+GET https://localhost:5925/api/movies/999
+Accept: application/json
+
+### 2.4 ID không hợp lệ (ID = 0) → 400 Bad Request
+GET https://localhost:5925/api/movies/0
+Accept: application/json
+
+### 2.5 ID âm → 400 Bad Request
+GET https://localhost:5925/api/movies/-1
+Accept: application/json
+
+# ============================================================================
+# 3. CREATE MOVIE - Tạo phim mới (POST)
+# ============================================================================
+
+### 3.1 Tạo phim thành công
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "Inception",
+  "description": "A thief who steals corporate secrets through dream-sharing technology",
+  "genre": "Sci-Fi",
+  "durationInMinutes": 148,
+  "posterUrl": "https://example.com/inception.jpg",
+  "releaseDate": "2010-07-16"
+}
+
+### 3.2 Tạo phim thành công (Movie khác)
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "The Matrix",
+  "description": "A computer programmer discovers that reality as he knows it is a simulation created by machines",
+  "genre": "Action",
+  "durationInMinutes": 136,
+  "posterUrl": "https://example.com/matrix.jpg",
+  "releaseDate": "1999-03-31"
+}
+
+### 3.3 Tạo phim thành công (Drama)
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "The Shawshank Redemption",
+  "description": "Two imprisoned men bond over a number of years",
+  "genre": "Drama",
+  "durationInMinutes": 142,
+  "posterUrl": "https://example.com/shawshank.jpg",
+  "releaseDate": "1994-09-23"
+}
+
+### 3.4 Title rỗng → 400 Bad Request
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "",
+  "description": "This movie has no title",
+  "genre": "Action",
+  "durationInMinutes": 120,
+  "posterUrl": "https://example.com/notitle.jpg",
+  "releaseDate": "2024-01-01"
+}
+
+### 3.5 Title null → 400 Bad Request
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "description": "No title provided",
+  "genre": "Drama",
+  "durationInMinutes": 100,
+  "posterUrl": "https://example.com/test.jpg",
+  "releaseDate": "2024-01-01"
+}
+
+### 3.6 DurationInMinutes = 0 → 400 Bad Request
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "Zero Duration Movie",
+  "description": "This movie has zero duration",
+  "genre": "Action",
+  "durationInMinutes": 0,
+  "posterUrl": "https://example.com/zero.jpg",
+  "releaseDate": "2024-01-01"
+}
+
+### 3.7 DurationInMinutes âm → 400 Bad Request
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "Negative Duration Movie",
+  "description": "This movie has negative duration",
+  "genre": "Action",
+  "durationInMinutes": -50,
+  "posterUrl": "https://example.com/negative.jpg",
+  "releaseDate": "2024-01-01"
+}
+
+### 3.8 Request body null → 400 Bad Request
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+### 3.9 Tạo phim mà không cung cấp mô tả (optional)
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "No Description Movie",
+  "genre": "Comedy",
+  "durationInMinutes": 90,
+  "posterUrl": "https://example.com/nodesc.jpg",
+  "releaseDate": "2024-06-15"
+}
+
+# ============================================================================
+# 4. UPDATE MOVIE - Cập nhật toàn bộ phim (PUT)
+# ============================================================================
+
+### 4.1 Cập nhật phim thành công (ID = 1)
+PUT https://localhost:5925/api/movies/1
+Content-Type: application/json
+
+{
+  "title": "Inception - Updated",
+  "description": "A thief who steals corporate secrets (Updated description)",
+  "genre": "Sci-Fi",
+  "durationInMinutes": 150,
+  "posterUrl": "https://example.com/inception-new.jpg",
+  "releaseDate": "2010-07-16"
+}
+
+### 4.2 Cập nhật phim thành công (ID = 2)
+PUT https://localhost:5925/api/movies/2
+Content-Type: application/json
+
+{
+  "title": "The Matrix Reloaded",
+  "description": "Thomas Anderson and his allies race against time before the machines discover the city of Zion",
+  "genre": "Action",
+  "durationInMinutes": 138,
+  "posterUrl": "https://example.com/matrix-reloaded.jpg",
+  "releaseDate": "2003-05-15"
+}
+
+### 4.3 Phim không tồn tại (ID = 999) → 404 Not Found
+PUT https://localhost:5925/api/movies/999
+Content-Type: application/json
+
+{
+  "title": "Ghost Movie",
+  "description": "This movie does not exist",
+  "genre": "Horror",
+  "durationInMinutes": 110,
+  "posterUrl": "https://example.com/ghost.jpg",
+  "releaseDate": "2024-12-31"
+}
+
+### 4.4 ID không hợp lệ (ID = 0) → 400 Bad Request
+PUT https://localhost:5925/api/movies/0
+Content-Type: application/json
+
+{
+  "title": "Invalid ID Movie",
+  "description": "ID is zero",
+  "genre": "Drama",
+  "durationInMinutes": 120,
+  "posterUrl": "https://example.com/invalid.jpg",
+  "releaseDate": "2024-01-01"
+}
+
+### 4.5 Cập nhật với dữ liệu không hợp lệ → 400 Bad Request
+PUT https://localhost:5925/api/movies/1
+Content-Type: application/json
+
+{
+  "title": "",
+  "description": "Empty title",
+  "genre": "Action",
+  "durationInMinutes": -10,
+  "posterUrl": "https://example.com/invalid.jpg",
+  "releaseDate": "2024-01-01"
+}
+
+# ============================================================================
+# 5. PARTIAL UPDATE MOVIE - Cập nhật một phần phim (PATCH)
+# ============================================================================
+
+### 5.1 Cập nhật chỉ Genre (ID = 1)
+PATCH https://localhost:5925/api/movies/1
+Content-Type: application/json
+
+{
+  "genre": "Action"
+}
+
+### 5.2 Cập nhật chỉ DurationInMinutes (ID = 1)
+PATCH https://localhost:5925/api/movies/1
+Content-Type: application/json
+
+{
+  "durationInMinutes": 160
+}
+
+### 5.3 Cập nhật nhiều trường (Genre + DurationInMinutes) (ID = 1)
+PATCH https://localhost:5925/api/movies/1
+Content-Type: application/json
+
+{
+  "genre": "Drama",
+  "durationInMinutes": 155
+}
+
+### 5.4 Cập nhật Title (ID = 2)
+PATCH https://localhost:5925/api/movies/2
+Content-Type: application/json
+
+{
+  "title": "The Matrix - Director's Cut"
+}
+
+### 5.5 Cập nhật Description (ID = 2)
+PATCH https://localhost:5925/api/movies/2
+Content-Type: application/json
+
+{
+  "description": "Updated description for The Matrix"
+}
+
+### 5.6 Cập nhật PosterUrl (ID = 1)
+PATCH https://localhost:5925/api/movies/1
+Content-Type: application/json
+
+{
+  "posterUrl": "https://example.com/inception-poster-v2.jpg"
+}
+
+### 5.7 Cập nhật ReleaseDate (ID = 1)
+PATCH https://localhost:5925/api/movies/1
+Content-Type: application/json
+
+{
+  "releaseDate": "2010-08-01"
+}
+
+### 5.8 Phim không tồn tại (ID = 999) → 404 Not Found
+PATCH https://localhost:5925/api/movies/999
+Content-Type: application/json
+
+{
+  "genre": "Horror"
+}
+
+### 5.9 ID không hợp lệ (ID = 0) → 400 Bad Request
+PATCH https://localhost:5925/api/movies/0
+Content-Type: application/json
+
+{
+  "genre": "Comedy"
+}
+
+### 5.10 Không cung cấp trường nào → 400 Bad Request
+PATCH https://localhost:5925/api/movies/1
+Content-Type: application/json
+
+{
+}
+
+# ============================================================================
+# 6. DELETE MOVIE - Xóa phim (DELETE)
+# ============================================================================
+
+### 6.1 Xóa phim thành công (ID = 1)
+DELETE https://localhost:5925/api/movies/1
+Accept: application/json
+
+### 6.2 Xóa phim thành công (ID = 2)
+DELETE https://localhost:5925/api/movies/2
+Accept: application/json
+
+### 6.3 Phim không tồn tại (ID = 999) → 404 Not Found
+DELETE https://localhost:5925/api/movies/999
+Accept: application/json
+
+### 6.4 ID không hợp lệ (ID = 0) → 400 Bad Request
+DELETE https://localhost:5925/api/movies/0
+Accept: application/json
+
+### 6.5 ID âm → 400 Bad Request
+DELETE https://localhost:5925/api/movies/-1
+Accept: application/json
+
+# ============================================================================
+# 7. INPUT VALIDATION TESTS - Kiểm tra middleware validation
+# ============================================================================
+
+### 7.1 XSS Payload (URL-encoded) → 400 Bad Request
+POST https://localhost:5925/api/movies?query=%3Cscript%3Ealert('xss')%3C%2Fscript%3E
+Content-Type: application/json
+
+{
+  "title": "XSS Test Movie",
+  "genre": "Action",
+  "durationInMinutes": 120,
+  "releaseDate": "2024-01-01"
+}
+
+### 7.2 SQL Injection Payload (URL-encoded) → 400 Bad Request
+POST https://localhost:5925/api/movies?query=DROP%20TABLE%20Movies
+Content-Type: application/json
+
+{
+  "title": "SQLi Test Movie",
+  "genre": "Drama",
+  "durationInMinutes": 100,
+  "releaseDate": "2024-01-01"
+}
+
+# ============================================================================
+# 8. TEST WITH SECURE FLAG - Kiểm tra Secure Query Middleware
+# ============================================================================
+
+### 8.1 GET phim mà không có secure flag → Allowed (200 OK)
+GET https://localhost:5925/api/movies
+Accept: application/json
+
+### 8.2 GET phim với secure=true → Allowed (200 OK)
+GET https://localhost:5925/api/movies?secure=true
+Accept: application/json
+
+### 8.3 GET phim với secure=false → Blocked (400 Bad Request)
+GET https://localhost:5925/api/movies?secure=false
+Accept: application/json
+
+# ============================================================================
+# 9. PERFORMANCE TESTS - Kiểm tra hiệu năng
+# ============================================================================
+
+### 9.1 Load test: Tạo phim (kiểm tra thời gian response)
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "Performance Test Movie",
+  "description": "Testing response time and server performance",
+  "genre": "Action",
+  "durationInMinutes": 145,
+  "posterUrl": "https://example.com/perf-test.jpg",
+  "releaseDate": "2024-03-20"
+}
+
+### 9.2 Load test: Lấy tất cả phim (kiểm tra pagination performance)
+GET https://localhost:5925/api/movies?pageNumber=1&pageSize=100
+Accept: application/json
+
+### 9.3 Load test: Lấy phim theo ID
+GET https://localhost:5925/api/movies/1
+Accept: application/json
+
+# ============================================================================
+# 10. EDGE CASES - Kiểm tra các trường hợp đặc biệt
+# ============================================================================
+
+### 10.1 Title quá dài (max 255 chars)
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "This is a very long movie title that might exceed the maximum length allowed by the database schema which is typically 255 characters for NVARCHAR(255) so let's make sure it handles this case properly by testing with a title that is extremely long and detailed with lots of descriptions embedded directly in the title field itself to ensure proper validation and error handling",
+  "genre": "Drama",
+  "durationInMinutes": 120,
+  "releaseDate": "2024-01-01"
+}
+
+### 10.2 Genre với ký tự đặc biệt
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "Special Characters Movie",
+  "description": "Testing with special characters: !@#$%^&*()",
+  "genre": "Action/Drama",
+  "durationInMinutes": 110,
+  "posterUrl": "https://example.com/special.jpg",
+  "releaseDate": "2024-01-01"
+}
+
+### 10.3 Release date trong quá khứ
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "Old Movie",
+  "description": "A movie from the past",
+  "genre": "Classic",
+  "durationInMinutes": 95,
+  "posterUrl": "https://example.com/old.jpg",
+  "releaseDate": "1920-01-01"
+}
+
+### 10.4 Release date trong tương lai
+POST https://localhost:5925/api/movies
+Content-Type: application/json
+
+{
+  "title": "Upcoming Movie",
+  "description": "A movie that hasn't been released yet",
+  "genre": "Sci-Fi",
+  "durationInMinutes": 150,
+  "posterUrl": "https://example.com/upcoming.jpg",
+  "releaseDate": "2030-12-31"
+}
+
+###############################################################################
+#
+# NOTES:
+#
+# 1. Response Format Thống Nhất:
+#    {
+#      "success": true/false,
+#      "message": "...",
+#      "data": { ... },
+#      "timestamp": "2024-12-19T10:30:00Z"
+#    }
+#
+# 2. HTTP Status Codes:
+#    - 200 OK: Thành công
+#    - 201 Created: Tạo mới thành công
+#    - 400 Bad Request: Dữ liệu không hợp lệ
+#    - 404 Not Found: Không tìm thấy
+#    - 500 Internal Server Error: Lỗi server
+#
+# 3. Middleware Chạy Trước Controller:
+#    - Exception Handling
+#    - Circuit Breaker (phản hồi 503 nếu 500+)
+#    - Input Validation (chặn XSS, SQLi)
+#    - Secure Query (kiểm tra secure flag)
+#    - Delay (giả lập 200ms)
+#    - Security Log
+#    - Elapsed Time Logging
+#    - HTTPS Redirect (5924 → 5925)
+#
+# 4. Cách Chạy:
+#    - Visual Studio: Click "Send Request" trên mỗi endpoint
+#    - Postman: Import file này
+#    - PowerShell:
+#      curl -X GET https://localhost:5925/api/movies --insecure
+#
+# 5. Localhost Certificate:
+#    Nếu gặp SSL error, chạy:
+#      dotnet dev-certs https --trust
+#
+###############################################################################
