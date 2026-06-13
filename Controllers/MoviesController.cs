@@ -6,41 +6,14 @@ using System.Threading.Tasks;
 
 namespace API_TICKET_APPLICATION.Controllers
 {
-    /// <summary>
-    /// MoviesController - API Controller quản lý phim
-    /// 
-    /// Kế thừa từ AppBaseController để:
-    ///   - Sử dụng _context từ base class
-    ///   - Sử dụng OkResponse, ErrorResponse cho response thống nhất
-    ///   - Sử dụng GetUserId(), GetUserEmail(), v.v. cho JWT
-    ///   - Giảm code lặp lại
-    /// </summary>
+     
     public class MoviesController : AppBaseController
     {
-        // ========== CONSTRUCTOR ==========
-        /// <summary>
-        /// Constructor của MoviesController
-        /// 
-        /// Inject AppDbContext và truyền lên Base Class thông qua base(context)
-        /// </summary>
+        
         public MoviesController(AppDbContext context) : base(context)
         {
         }
-
-        // ========== GET ENDPOINTS ==========
-
-        /// <summary>
-        /// GET /api/movies
-        /// Lấy tất cả phim
-        /// 
-        /// Query Parameters (Optional):
-        ///   - pageNumber: Số trang (default: 1)
-        ///   - pageSize: Số phim trên một trang (default: 10)
-        /// 
-        /// Ví dụ:
-        ///   GET /api/movies
-        ///   GET /api/movies?pageNumber=2&pageSize=20
-        /// </summary>
+         
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<Movie>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAll([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
@@ -74,18 +47,7 @@ namespace API_TICKET_APPLICATION.Controllers
                 return ErrorResponse($"Lỗi khi lấy dữ liệu phim: {ex.Message}", StatusCodes.Status500InternalServerError);
             }
         }
-
-        /// <summary>
-        /// GET /api/movies/{id}
-        /// Lấy phim theo ID
-        /// 
-        /// Ví dụ:
-        ///   GET /api/movies/1
-        /// 
-        /// Trả về:
-        ///   200 OK: { success: true, data: { id: 1, title: "...", ... } }
-        ///   404 Not Found: { success: false, message: "Không tìm thấy phim" }
-        /// </summary>
+         
         [HttpGet("{id}")]
         [ProducesResponseType(typeof(Movie), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -15,7 +15,23 @@ public partial class Seat
 
     public string SeatType { get; set; } = null!;
 
+    public DateTime? CreatedAt { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+
+    public int? CreatedBy { get; set; }
+
+    public int? UpdatedBy { get; set; }
+
+    public bool? IsDeleted { get; set; }
+
+    public DateTime? DeletedAt { get; set; }
+
     public virtual CinemaHall CinemaHall { get; set; } = null!;
 
+    public virtual User? CreatedByNavigation { get; set; }
+
     public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+
+    public virtual User? UpdatedByNavigation { get; set; }
 }

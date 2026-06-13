@@ -19,5 +19,21 @@ public partial class Movie
 
     public DateOnly ReleaseDate { get; set; }
 
+    public DateTime? CreatedAt { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+
+    public int? CreatedBy { get; set; }
+
+    public int? UpdatedBy { get; set; }
+
+    public bool? IsDeleted { get; set; }
+
+    public DateTime? DeletedAt { get; set; }
+
+    public virtual User? CreatedByNavigation { get; set; }
+
     public virtual ICollection<Showtime> Showtimes { get; set; } = new List<Showtime>();
+
+    public virtual User? UpdatedByNavigation { get; set; }
 }
