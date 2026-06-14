@@ -19,9 +19,8 @@ builder.WebHost.ConfigureKestrel(options =>
 
 // Register AppDbContext for Dependency Injection
 builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    options.UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=TicketManagementDB;Trusted_Connection=True;TrustServerCertificate=True;");
-});
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
