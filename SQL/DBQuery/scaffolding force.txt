@@ -1,0 +1,6 @@
+TicketManagementDB
+(localdb)\MSSQLLocalDB
+
+Server=(localdb)\\MSSQLLocalDB;Database=TicketManagementDB;Trusted_Connection=True;TrustServerCertificate=True;
+
+dotnet ef dbcontext scaffold "Server=(localdb)\MSSQLLocalDB;Database=TicketManagementDB;Trusted_Connection=True;TrustServerCertificate=True;" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Models -Context AppDbContext --force
