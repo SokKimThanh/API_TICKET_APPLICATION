@@ -240,6 +240,10 @@ Content-Type: application/json
 
 # ============================================================================
 # 5. PARTIAL UPDATE MOVIE - Cập nhật một phần phim (PATCH)
+#
+# OPTIMIZATION: This path now uses EF Core Change Tracker for targeted column
+# SQL updates. By removing redundant .Update() calls in the controller,
+# only the specific modified fields are sent to the database.
 # ============================================================================
 
 ### 5.1 Cập nhật chỉ Genre (ID = 1)
@@ -390,6 +394,11 @@ Accept: application/json
 
 # ============================================================================
 # 9. PERFORMANCE TESTS - Kiểm tra hiệu năng
+#
+# OPTIMIZATION:
+# - Read operations (GET) now utilize .AsNoTracking() to bypass tracking overhead.
+# - Input validation middleware uses static pattern caches to reduce allocations.
+# - EF Core Change Tracker is optimized to perform partial updates.
 # ============================================================================
 
 ### 9.1 Load test: Tạo phim (kiểm tra thời gian response)
