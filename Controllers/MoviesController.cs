@@ -44,7 +44,8 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                return ErrorResponse($"Lỗi hệ thống: {ex.Message}", StatusCodes.Status500InternalServerError);
+                Console.WriteLine(ex.ToString());
+                return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
 
@@ -72,7 +73,8 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                return ErrorResponse($"Lỗi hệ thống: {ex.Message}", StatusCodes.Status500InternalServerError);
+                Console.WriteLine(ex.ToString());
+                return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
 
@@ -102,7 +104,8 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                return ErrorResponse($"Lỗi tạo phim: {ex.Message}", StatusCodes.Status500InternalServerError);
+                Console.WriteLine(ex.ToString());
+                return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
 
@@ -181,8 +184,8 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CRUD] PATCH /api/movies/{id} - Error: {ex.Message}");
-                return ErrorResponse($"Lỗi khi cập nhật phim: {ex.Message}", StatusCodes.Status500InternalServerError);
+                Console.WriteLine(ex.ToString());
+                return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
         // ========== DELETE ENDPOINT ==========
@@ -217,7 +220,8 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                return ErrorResponse($"Lỗi khi xóa phim: {ex.Message}", StatusCodes.Status500InternalServerError);
+                Console.WriteLine(ex.ToString());
+                return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
     }
