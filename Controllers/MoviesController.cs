@@ -26,7 +26,8 @@ namespace API_TICKET_APPLICATION.Controllers
                 if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
                 // LOGIC SOFT DELETE: Chỉ lấy những phim chưa bị xóa
-                var query = _context.Movies.Where(m => m.IsDeleted == false);
+                // OPTIMIZATION: .AsNoTracking() reduces overhead for read-only operations
+                var query = _context.Movies.AsNoTracking().Where(m => m.IsDeleted == false);
 
                 var movies = await query
                     .OrderBy(m => m.Title)
@@ -64,7 +65,8 @@ namespace API_TICKET_APPLICATION.Controllers
                 if (id <= 0) return BadRequestError("ID phim không hợp lệ");
 
                 // LOGIC SOFT DELETE: Tìm ID và phải đảm bảo phim chưa bị xóa
-                var movie = await _context.Movies.FirstOrDefaultAsync(m => m.Id == id && m.IsDeleted == false);
+                // OPTIMIZATION: .AsNoTracking() reduces overhead for read-only operations
+                var movie = await _context.Movies.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id && m.IsDeleted == false);
 
                 if (movie == null)
                     return NotFoundError($"Không tìm thấy phim đang chiếu với ID: {id}");
@@ -175,7 +177,8 @@ namespace API_TICKET_APPLICATION.Controllers
                     }
                 }
 
-                _context.Movies.Update(movie);
+                // OPTIMIZATION: Removed redundant _context.Movies.Update(movie).
+                // EF Core change tracker automatically detects changed properties and only updates those columns in SQL.
                 await _context.SaveChangesAsync();
 
                 Console.WriteLine($"[CRUD] PATCH /api/movies/{id} - Partially updated: {movie.Title}");
@@ -213,7 +216,8 @@ namespace API_TICKET_APPLICATION.Controllers
                 // ✅ THỰC HIỆN SOFT DELETE: Chỉ bật cờ IsDeleted
                 movie.IsDeleted = true;
 
-                _context.Movies.Update(movie);
+                // OPTIMIZATION: Removed redundant _context.Movies.Update(movie).
+                // EF Core change tracker will only update the IsDeleted column.
                 await _context.SaveChangesAsync();
 
                 return OkResponse($"Đã gỡ bỏ phim '{movie.Title}' khỏi hệ thống (Xóa mềm) thành công");

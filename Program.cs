@@ -157,19 +157,19 @@ app.Run();
 
 public static class InputValidator
 {
+    // OPTIMIZATION: Moved patterns to a static readonly field to avoid allocation on every request.
+    private static readonly string[] DangerousPatterns = new[]
+    {
+        "<script>", "DROP TABLE", "UNION SELECT", "--", ";--", "/*", "*/", "@@", "char(", "nchar(", "varchar(", "alter", "exec", "xp_"
+    };
+
     // Hàm kiểm tra dữ liệu đầu vào
     public static bool IsInvalid(string? input)
     {
         if (string.IsNullOrEmpty(input))
             return false;
 
-        // Các pattern nguy hiểm cần lọc
-        string[] dangerousPatterns = new[]
-        {
-            "<script>", "DROP TABLE", "UNION SELECT", "--", ";--", "/*", "*/", "@@", "char(", "nchar(", "varchar(", "alter", "exec", "xp_"
-        };
-
-        foreach (var pattern in dangerousPatterns)
+        foreach (var pattern in DangerousPatterns)
         {
             if (input.Contains(pattern, StringComparison.OrdinalIgnoreCase))
             {
