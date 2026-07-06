@@ -111,6 +111,48 @@ namespace API_TICKET_APPLICATION.Controllers
             }
         }
 
+        // ========== PUT ENDPOINT ==========
+
+        /// <summary>
+        /// Cập nhật toàn bộ thông tin phim
+        /// </summary>
+        [HttpPut("{id}")]
+        [ProducesResponseType(typeof(Movie), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> Update(int id, [FromBody] Movie movie)
+        {
+            try
+            {
+                if (id <= 0) return BadRequestError("ID phim không hợp lệ");
+                if (movie == null) return BadRequestError("Dữ liệu trống");
+                if (string.IsNullOrWhiteSpace(movie.Title)) return BadRequestError("Tên phim không được để trống");
+
+                // Tìm phim
+                var existingMovie = await _context.Movies.FirstOrDefaultAsync(m => m.Id == id);
+                if (existingMovie == null)
+                    return NotFoundError($"Không tìm thấy phim với ID: {id}");
+
+                // Cập nhật tất cả các trường
+                existingMovie.Title = movie.Title;
+                existingMovie.Description = movie.Description;
+                existingMovie.Genre = movie.Genre;
+                existingMovie.DurationInMinutes = movie.DurationInMinutes;
+                existingMovie.PosterUrl = movie.PosterUrl;
+                existingMovie.ReleaseDate = movie.ReleaseDate;
+
+                await _context.SaveChangesAsync();
+
+                return OkResponse(existingMovie, $"Cập nhật phim '{existingMovie.Title}' thành công");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+                return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
+            }
+        }
+
         // ========== PATCH ENDPOINT ==========
 
         /// <summary>
