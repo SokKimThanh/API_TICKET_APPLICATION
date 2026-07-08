@@ -101,20 +101,10 @@ namespace API_TICKET_APPLICATION.Controllers
         {
             try
             {
-                // ========== KIỂM TRA DỮ LIỆU NULL ==========
-                if (movie == null)
-                    return BadRequestError("Dữ liệu trống");
-
-                // ========== KIỂM TRA VALIDATION BẰNG FLUENTVALIDATION ==========
-                var validationResult = await _movieValidator.ValidateAsync(movie);
-
-                if (!validationResult.IsValid)
-                {
-                    // Nếu validation thất bại, trả về lỗi chi tiết
-                    var errors = string.Join("; ", validationResult.Errors.Select(e => e.ErrorMessage));
-                    Console.WriteLine($"[VALIDATION ERROR] Create Movie: {errors}");
-                    return BadRequestError(errors);
-                }
+                // VALIDATION: Sử dụng MovieValidator
+                var validation = MovieValidator.Validate(movie);
+                if (!validation.IsValid)
+                    return BadRequestError(validation.ErrorMessage ?? "Dữ liệu phim không hợp lệ");
 
                 // ========== GÁN GIÁ TRỊ MẶC ĐỊNH CHO AUDIT & SOFT DELETE ==========
                 movie.IsDeleted = false;
@@ -245,6 +235,11 @@ namespace API_TICKET_APPLICATION.Controllers
                 // Cập nhật từng trường
                 foreach (var update in updates)
                 {
+                    // VALIDATION: Kiểm tra từng trường trước khi gán
+                    var validation = MovieValidator.ValidateField(update.Key, update.Value);
+                    if (!validation.IsValid)
+                        return BadRequestError(validation.ErrorMessage ?? "Dữ liệu không hợp lệ");
+
                     switch (update.Key.ToLower())
                     {
                         case "title":
