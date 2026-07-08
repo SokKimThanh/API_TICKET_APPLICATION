@@ -1,20 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
 using API_TICKET_APPLICATION.Models;
-using API_TICKET_APPLICATION.Validators;
 using Microsoft.EntityFrameworkCore;
-using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API_TICKET_APPLICATION.Controllers
 {
     // KẾ THỪA TỪ QUẢN GIA: Không cần khai báo lại _context
     public class MoviesController : AppBaseController
     {
-        private readonly IValidator<Movie> _movieValidator;  // ✅ Inject MovieValidator
-
         // Đẩy context xuống lớp cha (AppBaseController) xử lý
-        public MoviesController(AppDbContext context, IValidator<Movie> movieValidator) : base(context)
+        public MoviesController(AppDbContext context) : base(context)
         {
-            _movieValidator = movieValidator ?? throw new ArgumentNullException(nameof(movieValidator));
         }
 
         // ========== GET ENDPOINTS ==========
@@ -91,9 +87,10 @@ namespace API_TICKET_APPLICATION.Controllers
 
         /// <summary>
         /// Thêm mới một bộ phim vào hệ thống
-        /// Áp dụng FluentValidation (MovieValidator) để kiểm tra dữ liệu đầu vào
+        /// Áp dụng MovieValidator để kiểm tra dữ liệu đầu vào
         /// </summary>
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(typeof(Movie), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -134,9 +131,10 @@ namespace API_TICKET_APPLICATION.Controllers
 
         /// <summary>
         /// Cập nhật toàn bộ thông tin phim
-        /// Áp dụng FluentValidation (MovieValidator) để kiểm tra dữ liệu đầu vào
+        /// Áp dụng MovieValidator để kiểm tra dữ liệu đầu vào
         /// </summary>
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(typeof(Movie), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -152,14 +150,13 @@ namespace API_TICKET_APPLICATION.Controllers
                 if (movie == null)
                     return BadRequestError("Dữ liệu trống");
 
-                // ========== KIỂM TRA VALIDATION BẰNG FLUENTVALIDATION ==========
-                var validationResult = await _movieValidator.ValidateAsync(movie);
+                // ========== KIỂM TRA VALIDATION BẰNG STATIC VALIDATOR ==========
+                var validation = MovieValidator.Validate(movie);
 
-                if (!validationResult.IsValid)
+                if (!validation.IsValid)
                 {
-                    var errors = string.Join("; ", validationResult.Errors.Select(e => e.ErrorMessage));
-                    Console.WriteLine($"[VALIDATION ERROR] Update Movie {id}: {errors}");
-                    return BadRequestError(errors);
+                    Console.WriteLine($"[VALIDATION ERROR] Update Movie {id}: {validation.ErrorMessage}");
+                    return BadRequestError(validation.ErrorMessage ?? "Dữ liệu phim không hợp lệ");
                 }
 
                 // ========== TÌM PHIM HIỆN CÓ ==========
@@ -211,6 +208,7 @@ namespace API_TICKET_APPLICATION.Controllers
         ///   404 Not Found: { success: false, message: "Không tìm thấy phim" }
         /// </summary>
         [HttpPatch("{id}")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(typeof(Movie), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> PartialUpdate(int id, [FromBody] Dictionary<string, object> updates)
@@ -285,6 +283,7 @@ namespace API_TICKET_APPLICATION.Controllers
         /// Xóa bộ phim khỏi hệ thống (Xóa mềm - Soft Delete)
         /// </summary>
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
