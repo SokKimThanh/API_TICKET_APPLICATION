@@ -20,7 +20,13 @@ namespace API_TICKET_APPLICATION.Controllers
             _configuration = configuration;
         }
 
+        /// <summary>
+        /// Đăng ký tài khoản mới
+        /// </summary>
         [HttpPost("register")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
             try
@@ -55,7 +61,14 @@ namespace API_TICKET_APPLICATION.Controllers
             }
         }
 
+        /// <summary>
+        /// Đăng nhập và nhận JWT token
+        /// </summary>
         [HttpPost("login")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             try

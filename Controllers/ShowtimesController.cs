@@ -11,8 +11,15 @@ namespace API_TICKET_APPLICATION.Controllers
         {
         }
 
+        /// <summary>
+        /// Lấy danh sách lịch chiếu (có phân trang, bộ lọc theo phim/rạp/ngày)
+        /// </summary>
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] int? movieId, [FromQuery] int? cinemaHallId, [FromQuery] DateTime? date, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetAll([FromQuery] int? movieId, [FromQuery] int? cinemaHallId, 
+            [FromQuery] DateTime? date, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             try
             {
@@ -55,7 +62,14 @@ namespace API_TICKET_APPLICATION.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy thông tin chi tiết một lịch chiếu theo ID
+        /// </summary>
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(Showtime), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetById(int id)
         {
             try
@@ -75,8 +89,18 @@ namespace API_TICKET_APPLICATION.Controllers
             }
         }
 
+        /// <summary>
+        /// Tạo lịch chiếu mới (Chỉ Admin)
+        /// Kiểm tra: Phim tồn tại, Rạp tồn tại, Không chồng chéo thời gian
+        /// </summary>
         [HttpPost]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(typeof(Showtime), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Create([FromBody] Showtime showtime)
         {
             try
@@ -117,8 +141,19 @@ namespace API_TICKET_APPLICATION.Controllers
             }
         }
 
+        /// <summary>
+        /// Cập nhật toàn bộ thông tin lịch chiếu (Chỉ Admin)
+        /// Kiểm tra: Phim tồn tại, Rạp tồn tại, Không chồng chéo thời gian
+        /// </summary>
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(typeof(Showtime), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Update(int id, [FromBody] Showtime showtime)
         {
             try
@@ -165,8 +200,19 @@ namespace API_TICKET_APPLICATION.Controllers
             }
         }
 
+        /// <summary>
+        /// Cập nhật một phần thông tin lịch chiếu (PATCH) - Chỉ Admin
+        /// Kiểm tra: Logic thời gian, Không chồng chéo
+        /// </summary>
         [HttpPatch("{id}")]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(typeof(Showtime), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> PartialUpdate(int id, [FromBody] Dictionary<string, object> updates)
         {
             try
@@ -225,8 +271,17 @@ namespace API_TICKET_APPLICATION.Controllers
             }
         }
 
+        /// <summary>
+        /// Xóa lịch chiếu (Xóa mềm - Soft Delete) - Chỉ Admin
+        /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Delete(int id)
         {
             try

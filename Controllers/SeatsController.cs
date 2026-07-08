@@ -11,7 +11,13 @@ namespace API_TICKET_APPLICATION.Controllers
         {
         }
 
+        /// <summary>
+        /// Lấy danh sách ghế (có phân trang, bộ lọc theo rạp)
+        /// </summary>
         [HttpGet]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetAll([FromQuery] int? cinemaHallId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50)
         {
             try
@@ -42,7 +48,14 @@ namespace API_TICKET_APPLICATION.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy thông tin chi tiết một ghế theo ID
+        /// </summary>
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(Seat), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetById(int id)
         {
             try
@@ -58,8 +71,16 @@ namespace API_TICKET_APPLICATION.Controllers
             }
         }
 
+        /// <summary>
+        /// Tạo ghế mới (Chỉ Admin)
+        /// </summary>
         [HttpPost]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(typeof(Seat), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Create([FromBody] Seat seat)
         {
             try
@@ -85,8 +106,17 @@ namespace API_TICKET_APPLICATION.Controllers
             }
         }
 
+        /// <summary>
+        /// Cập nhật toàn bộ thông tin ghế (Chỉ Admin)
+        /// </summary>
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(typeof(Seat), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Update(int id, [FromBody] Seat seat)
         {
             try
@@ -113,8 +143,17 @@ namespace API_TICKET_APPLICATION.Controllers
             }
         }
 
+        /// <summary>
+        /// Cập nhật một phần thông tin ghế (PATCH) - Chỉ Admin
+        /// </summary>
         [HttpPatch("{id}")]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(typeof(Seat), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> PartialUpdate(int id, [FromBody] Dictionary<string, object> updates)
         {
             try
@@ -155,8 +194,17 @@ namespace API_TICKET_APPLICATION.Controllers
             }
         }
 
+        /// <summary>
+        /// Xóa ghế (Xóa mềm - Soft Delete) - Chỉ Admin
+        /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Delete(int id)
         {
             try
