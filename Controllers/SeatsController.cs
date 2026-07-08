@@ -15,9 +15,9 @@ namespace API_TICKET_APPLICATION.Controllers
         /// Lấy danh sách ghế (có phân trang, bộ lọc theo rạp)
         /// </summary>
         [HttpGet]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(typeof(ResponseModel<PagedData<Seat>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetAll([FromQuery] int? cinemaHallId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50)
         {
             try
@@ -33,12 +33,12 @@ namespace API_TICKET_APPLICATION.Controllers
                     .Take(pageSize)
                     .ToListAsync();
 
-                return OkResponse(new
+                return OkResponse(new PagedData<Seat>
                 {
-                    pageNumber,
-                    pageSize,
-                    totalCount = await query.CountAsync(),
-                    data = seats
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalCount = await query.CountAsync(),
+                    Data = seats
                 }, "Lấy danh sách ghế thành công");
             }
             catch (Exception ex)
@@ -52,10 +52,10 @@ namespace API_TICKET_APPLICATION.Controllers
         /// Lấy thông tin chi tiết một ghế theo ID
         /// </summary>
         [HttpGet("{id}")]
-        [ProducesResponseType(typeof(Seat), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(typeof(ResponseModel<Seat>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetById(int id)
         {
             try
@@ -76,11 +76,11 @@ namespace API_TICKET_APPLICATION.Controllers
         /// </summary>
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        [ProducesResponseType(typeof(Seat), StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(typeof(ResponseModel<Seat>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Create([FromBody] Seat seat)
         {
             try
@@ -111,12 +111,12 @@ namespace API_TICKET_APPLICATION.Controllers
         /// </summary>
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        [ProducesResponseType(typeof(Seat), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(typeof(ResponseModel<Seat>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Update(int id, [FromBody] Seat seat)
         {
             try
@@ -148,12 +148,12 @@ namespace API_TICKET_APPLICATION.Controllers
         /// </summary>
         [HttpPatch("{id}")]
         [Authorize(Roles = "Admin")]
-        [ProducesResponseType(typeof(Seat), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(typeof(ResponseModel<Seat>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> PartialUpdate(int id, [FromBody] Dictionary<string, object> updates)
         {
             try
@@ -199,12 +199,12 @@ namespace API_TICKET_APPLICATION.Controllers
         /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Delete(int id)
         {
             try
