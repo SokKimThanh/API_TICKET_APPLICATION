@@ -1,14 +1,21 @@
 using Microsoft.AspNetCore.Mvc;
 using API_TICKET_APPLICATION.Models;
+using API_TICKET_APPLICATION.Validators;
 using Microsoft.EntityFrameworkCore;
+using FluentValidation;
 
 namespace API_TICKET_APPLICATION.Controllers
 {
     // KẾ THỪA TỪ QUẢN GIA: Không cần khai báo lại _context
     public class MoviesController : AppBaseController
     {
+        private readonly IValidator<Movie> _movieValidator;  // ✅ Inject MovieValidator
+
         // Đẩy context xuống lớp cha (AppBaseController) xử lý
-        public MoviesController(AppDbContext context) : base(context) { }
+        public MoviesController(AppDbContext context, IValidator<Movie> movieValidator) : base(context)
+        {
+            _movieValidator = movieValidator ?? throw new ArgumentNullException(nameof(movieValidator));
+        }
 
         // ========== GET ENDPOINTS ==========
 
@@ -84,6 +91,7 @@ namespace API_TICKET_APPLICATION.Controllers
 
         /// <summary>
         /// Thêm mới một bộ phim vào hệ thống
+        /// Áp dụng FluentValidation (MovieValidator) để kiểm tra dữ liệu đầu vào
         /// </summary>
         [HttpPost]
         [ProducesResponseType(typeof(Movie), StatusCodes.Status201Created)]
@@ -98,17 +106,90 @@ namespace API_TICKET_APPLICATION.Controllers
                 if (!validation.IsValid)
                     return BadRequestError(validation.ErrorMessage ?? "Dữ liệu phim không hợp lệ");
 
-                // Gán giá trị mặc định cho cột Audit & Soft Delete
+                // ========== GÁN GIÁ TRỊ MẶC ĐỊNH CHO AUDIT & SOFT DELETE ==========
                 movie.IsDeleted = false;
+                movie.CreatedAt = DateTime.UtcNow;
 
+                // ========== LƯU VÀO DATABASE ==========
                 _context.Movies.Add(movie);
                 await _context.SaveChangesAsync();
 
+                Console.WriteLine($"[CRUD] POST /api/movies - Created: {movie.Title} (ID: {movie.Id})");
+
                 return CreatedResponse(movie, $"Tạo phim '{movie.Title}' thành công", $"/api/movies/{movie.Id}");
+            }
+            catch (DbUpdateException dbEx)
+            {
+                Console.WriteLine($"[DATABASE ERROR] Create Movie: {dbEx.Message}");
+                return ErrorResponse("Lỗi khi lưu dữ liệu vào database. Vui lòng kiểm tra dữ liệu đầu vào.", StatusCodes.Status500InternalServerError);
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Console.WriteLine($"[SYSTEM ERROR] Create Movie: {ex}");
+                return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
+            }
+        }
+
+        // ========== PUT ENDPOINT ==========
+
+        /// <summary>
+        /// Cập nhật toàn bộ thông tin phim
+        /// Áp dụng FluentValidation (MovieValidator) để kiểm tra dữ liệu đầu vào
+        /// </summary>
+        [HttpPut("{id}")]
+        [ProducesResponseType(typeof(Movie), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> Update(int id, [FromBody] Movie movie)
+        {
+            try
+            {
+                // ========== KIỂM TRA ID HỢP LỆ ==========
+                if (id <= 0)
+                    return BadRequestError("ID phim không hợp lệ");
+
+                if (movie == null)
+                    return BadRequestError("Dữ liệu trống");
+
+                // ========== KIỂM TRA VALIDATION BẰNG FLUENTVALIDATION ==========
+                var validationResult = await _movieValidator.ValidateAsync(movie);
+
+                if (!validationResult.IsValid)
+                {
+                    var errors = string.Join("; ", validationResult.Errors.Select(e => e.ErrorMessage));
+                    Console.WriteLine($"[VALIDATION ERROR] Update Movie {id}: {errors}");
+                    return BadRequestError(errors);
+                }
+
+                // ========== TÌM PHIM HIỆN CÓ ==========
+                var existingMovie = await _context.Movies.FirstOrDefaultAsync(m => m.Id == id);
+                if (existingMovie == null)
+                    return NotFoundError($"Không tìm thấy phim với ID: {id}");
+
+                // ========== CẬP NHẬT TẤT CẢ CÁC TRƯỜNG ==========
+                existingMovie.Title = movie.Title;
+                existingMovie.Description = movie.Description;
+                existingMovie.Genre = movie.Genre;
+                existingMovie.DurationInMinutes = movie.DurationInMinutes;
+                existingMovie.PosterUrl = movie.PosterUrl;
+                existingMovie.ReleaseDate = movie.ReleaseDate;
+                existingMovie.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                Console.WriteLine($"[CRUD] PUT /api/movies/{id} - Updated: {existingMovie.Title}");
+
+                return OkResponse(existingMovie, $"Cập nhật phim '{existingMovie.Title}' thành công");
+            }
+            catch (DbUpdateException dbEx)
+            {
+                Console.WriteLine($"[DATABASE ERROR] Update Movie {id}: {dbEx.Message}");
+                return ErrorResponse("Lỗi khi cập nhật dữ liệu. Vui lòng thử lại.", StatusCodes.Status500InternalServerError);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SYSTEM ERROR] Update Movie {id}: {ex}");
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
