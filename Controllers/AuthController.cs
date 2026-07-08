@@ -24,9 +24,9 @@ namespace API_TICKET_APPLICATION.Controllers
         /// Đăng ký tài khoản mới
         /// </summary>
         [HttpPost("register")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(typeof(ResponseModel<UserResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
             try
@@ -52,7 +52,13 @@ namespace API_TICKET_APPLICATION.Controllers
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
 
-                return OkResponse(new { user.Id, user.Email, user.FullName }, "Đăng ký tài khoản thành công");
+                return OkResponse(new UserResponseDto
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    FullName = user.FullName,
+                    Role = user.Role
+                }, "Đăng ký tài khoản thành công");
             }
             catch (Exception ex)
             {
@@ -65,10 +71,10 @@ namespace API_TICKET_APPLICATION.Controllers
         /// Đăng nhập và nhận JWT token
         /// </summary>
         [HttpPost("login")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(typeof(ResponseModel<LoginResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             try
@@ -83,10 +89,16 @@ namespace API_TICKET_APPLICATION.Controllers
 
                 var token = GenerateJwtToken(user);
 
-                return OkResponse(new
+                return OkResponse(new LoginResponseDto
                 {
                     Token = token,
-                    User = new { user.Id, user.Email, user.FullName, user.Role }
+                    User = new UserResponseDto
+                    {
+                        Id = user.Id,
+                        Email = user.Email,
+                        FullName = user.FullName,
+                        Role = user.Role
+                    }
                 }, "Đăng nhập thành công");
             }
             catch (Exception ex)
