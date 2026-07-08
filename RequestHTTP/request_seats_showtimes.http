@@ -1,0 +1,81 @@
+@hostname = localhost
+@port = 5925
+@baseUrl = https://{{hostname}}:{{port}}
+
+###############################################################################
+# REQUEST FILE: request_seats_showtimes.http
+###############################################################################
+
+# ============================================================================
+# 1. SEATS
+# ============================================================================
+
+### 1.1 Get all seats
+GET {{baseUrl}}/api/seats?pageNumber=1&pageSize=50
+Accept: application/json
+
+### 1.2 Get seat by ID
+GET {{baseUrl}}/api/seats/1
+Accept: application/json
+
+### 1.3 Create seat (Admin)
+POST {{baseUrl}}/api/seats
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "cinemaHallId": 1,
+  "row": "A",
+  "number": 10,
+  "seatType": "Standard"
+}
+
+### 1.4 Update seat (Admin)
+PUT {{baseUrl}}/api/seats/1
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "cinemaHallId": 1,
+  "row": "A",
+  "number": 10,
+  "seatType": "VIP"
+}
+
+# ============================================================================
+# 2. SHOWTIMES
+# ============================================================================
+
+### 2.1 Get all showtimes
+GET {{baseUrl}}/api/showtimes?pageNumber=1&pageSize=10
+Accept: application/json
+
+### 2.2 Get showtime by ID
+GET {{baseUrl}}/api/showtimes/1
+Accept: application/json
+
+### 2.3 Create showtime (Admin)
+POST {{baseUrl}}/api/showtimes
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "movieId": 1,
+  "cinemaHallId": 1,
+  "startTime": "2025-01-01T18:00:00",
+  "endTime": "2025-01-01T21:00:00",
+  "basePrice": 120000
+}
+
+### 2.4 Update showtime (Admin)
+PUT {{baseUrl}}/api/showtimes/1
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "movieId": 1,
+  "cinemaHallId": 1,
+  "startTime": "2025-01-01T19:00:00",
+  "endTime": "2025-01-01T22:00:00",
+  "basePrice": 130000
+}
