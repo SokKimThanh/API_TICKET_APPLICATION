@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.HttpsPolicy;
 using API_TICKET_APPLICATION.Models;
-using API_TICKET_APPLICATION.Validators;
 using Microsoft.EntityFrameworkCore;
-using FluentValidation;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,9 +24,33 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// ========== REGISTER FLUENTVALIDATION ==========
-// Đăng ký FluentValidation cho các Validator riêng biệt (không dùng Data Annotations)
-builder.Services.AddScoped<IValidator<Movie>, MovieValidator>();
+// ========== CONFIGURE JWT AUTHENTICATION ==========
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT Secret Key is not configured.");
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false; // Set to true in production
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidAudience = jwtSettings["Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
@@ -151,6 +176,7 @@ app.UseHttpsRedirection();
 app.UseRouting();
 
 // 5. Auth
+app.UseAuthentication();
 app.UseAuthorization();
 
 // 6. Endpoints
