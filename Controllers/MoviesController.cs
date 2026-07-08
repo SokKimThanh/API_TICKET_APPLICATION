@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using API_TICKET_APPLICATION.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API_TICKET_APPLICATION.Controllers
 {
@@ -86,6 +87,7 @@ namespace API_TICKET_APPLICATION.Controllers
         /// Thêm mới một bộ phim vào hệ thống
         /// </summary>
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(typeof(Movie), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -130,6 +132,7 @@ namespace API_TICKET_APPLICATION.Controllers
         ///   404 Not Found: { success: false, message: "Không tìm thấy phim" }
         /// </summary>
         [HttpPatch("{id}")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(typeof(Movie), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> PartialUpdate(int id, [FromBody] Dictionary<string, object> updates)
@@ -204,6 +207,7 @@ namespace API_TICKET_APPLICATION.Controllers
         /// Xóa bộ phim khỏi hệ thống (Xóa mềm - Soft Delete)
         /// </summary>
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
