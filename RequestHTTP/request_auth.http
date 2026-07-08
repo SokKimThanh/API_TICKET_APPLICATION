@@ -1,21 +1,51 @@
-### POST /api/auth/register
-POST http://localhost:5924/api/auth/register
+@hostname = localhost
+@port = 5925
+@baseUrl = https://{{hostname}}:{{port}}
+
+### 1. Register Admin
+POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
 {
-  "fullName": "Admin User",
+  "fullName": "System Admin",
   "email": "admin@example.com",
-  "password": "password123"
+  "password": "AdminPassword123"
 }
 
-### POST /api/auth/login
-POST http://localhost:5924/api/auth/login
+### 2. Register User
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Regular User",
+  "email": "user@example.com",
+  "password": "UserPassword123"
+}
+
+### 3. Login as Admin
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
   "email": "admin@example.com",
-  "password": "password123"
+  "password": "AdminPassword123"
 }
 
-### GET /api/movies
-GET http://localhost:5924/api/movies
+> {%
+    client.global.set("authToken", response.body.data.token);
+%}
+
+### 4. Login as User
+# @name loginUser
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "UserPassword123"
+}
+
+> {%
+    client.global.set("authToken", response.body.data.token);
+%}
