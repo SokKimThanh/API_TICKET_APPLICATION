@@ -93,8 +93,10 @@ namespace API_TICKET_APPLICATION.Controllers
         {
             try
             {
-                if (movie == null) return BadRequestError("Dữ liệu trống");
-                if (string.IsNullOrWhiteSpace(movie.Title)) return BadRequestError("Tên phim không được để trống");
+                // VALIDATION: Sử dụng MovieValidator
+                var validation = MovieValidator.Validate(movie);
+                if (!validation.IsValid)
+                    return BadRequestError(validation.ErrorMessage ?? "Dữ liệu phim không hợp lệ");
 
                 // Gán giá trị mặc định cho cột Audit & Soft Delete
                 movie.IsDeleted = false;
@@ -152,6 +154,11 @@ namespace API_TICKET_APPLICATION.Controllers
                 // Cập nhật từng trường
                 foreach (var update in updates)
                 {
+                    // VALIDATION: Kiểm tra từng trường trước khi gán
+                    var validation = MovieValidator.ValidateField(update.Key, update.Value);
+                    if (!validation.IsValid)
+                        return BadRequestError(validation.ErrorMessage ?? "Dữ liệu không hợp lệ");
+
                     switch (update.Key.ToLower())
                     {
                         case "title":
