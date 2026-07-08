@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.HttpsPolicy;
 using API_TICKET_APPLICATION.Models;
-using API_TICKET_APPLICATION.Validators;
 using Microsoft.EntityFrameworkCore;
-using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,9 +21,6 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// ========== REGISTER FLUENTVALIDATION ==========
-// Đăng ký FluentValidation cho các Validator riêng biệt (không dùng Data Annotations)
-builder.Services.AddScoped<IValidator<Movie>, MovieValidator>();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
