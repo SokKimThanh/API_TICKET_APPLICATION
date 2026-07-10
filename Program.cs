@@ -56,8 +56,55 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver
+        {
+            Modifiers = { JsonContractModifiers.IgnoreVirtualPropertiesModifier }
+        };
     });
-builder.Services.AddOpenApi();
+
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
+{
+    options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    options.SerializerOptions.TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver
+    {
+        Modifiers = { JsonContractModifiers.IgnoreVirtualPropertiesModifier }
+    };
+});
+
+builder.Services.AddOpenApi(options =>
+{
+    // Custom Schema ID generation for nested generic classes to avoid raw names (like ResponseModel_1)
+    options.CreateSchemaReferenceId = jsonType =>
+    {
+        var defaultId = Microsoft.AspNetCore.OpenApi.OpenApiOptions.CreateDefaultSchemaReferenceId(jsonType);
+        if (defaultId is null)
+        {
+            return null;
+        }
+
+        return GetFriendlySchemaId(jsonType.Type);
+    };
+
+    static string GetFriendlySchemaId(Type type)
+    {
+        if (type.IsGenericType)
+        {
+            var name = type.Name;
+            var index = name.IndexOf('`');
+            if (index > 0)
+            {
+                name = name.Substring(0, index);
+            }
+            var genericArgs = type.GetGenericArguments();
+            var genericArgsFriendly = string.Join("And", genericArgs.Select(GetFriendlySchemaId));
+            return $"{name}Of{genericArgsFriendly}";
+        }
+        return type.Name;
+    }
+
+    // Configure security schemes in OpenAPI Document (for JWT "Authorize" unlock button in Swagger UI)
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+});
 
 // Configure HTTPS redirection options so middleware knows the HTTPS port (Kestrel listens on 5925)
 builder.Services.AddHttpsRedirection(options =>
@@ -72,6 +119,11 @@ if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
     app.MapOpenApi();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "API Ticket Application v1");
+        options.RoutePrefix = "swagger"; // Enables access at /swagger
+    });
 }
 else
 {
@@ -213,5 +265,64 @@ public static class InputValidator
         }
 
         return false;
+    }
+}
+
+public sealed class BearerSecuritySchemeTransformer : Microsoft.AspNetCore.OpenApi.IOpenApiDocumentTransformer
+{
+    public Task TransformAsync(
+        Microsoft.OpenApi.OpenApiDocument document,
+        Microsoft.AspNetCore.OpenApi.OpenApiDocumentTransformerContext context,
+        CancellationToken cancellationToken)
+    {
+        document.Components ??= new Microsoft.OpenApi.OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, Microsoft.OpenApi.IOpenApiSecurityScheme>();
+
+        document.Components.SecuritySchemes["Bearer"] = new Microsoft.OpenApi.OpenApiSecurityScheme
+        {
+            Type = Microsoft.OpenApi.SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = Microsoft.OpenApi.ParameterLocation.Header,
+            Description = "Hãy nhập JWT Token của bạn để xác thực các endpoint bảo mật (không cần tiền tố Bearer)."
+        };
+
+        document.Security ??= new List<Microsoft.OpenApi.OpenApiSecurityRequirement>();
+
+        var requirement = new Microsoft.OpenApi.OpenApiSecurityRequirement
+        {
+            [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+        };
+        document.Security.Add(requirement);
+
+        return Task.CompletedTask;
+    }
+}
+
+public static class JsonContractModifiers
+{
+    public static void IgnoreVirtualPropertiesModifier(System.Text.Json.Serialization.Metadata.JsonTypeInfo typeInfo)
+    {
+        if (typeInfo.Kind != System.Text.Json.Serialization.Metadata.JsonTypeInfoKind.Object)
+        {
+            return;
+        }
+
+        // Ignore EF Core navigation/virtual properties to prevent circular references in JSON serialization and OpenAPI schemas.
+        for (int i = typeInfo.Properties.Count - 1; i >= 0; i--)
+        {
+            var prop = typeInfo.Properties[i];
+            var propInfo = typeInfo.Type.GetProperty(prop.Name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+            if (propInfo != null)
+            {
+                var isVirtual = (propInfo.GetMethod != null && propInfo.GetMethod.IsVirtual && !propInfo.GetMethod.IsFinal) ||
+                                (propInfo.SetMethod != null && propInfo.SetMethod.IsVirtual && !propInfo.SetMethod.IsFinal);
+
+                if (isVirtual)
+                {
+                    typeInfo.Properties.RemoveAt(i);
+                }
+            }
+        }
     }
 }
