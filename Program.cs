@@ -4,6 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.OpenApi;
+using System.Text.Json.Serialization.Metadata;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,58 +56,50 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// Register OpenAPI services with Bearer authentication transformer and custom schema generator
+builder.Services.AddOpenApi(options =>
+{
+    // Custom Schema ID Generator for Generic types in native .NET 10 OpenAPI
+    options.AddSchemaTransformer((schema, context, cancellationToken) =>
+    {
+        var type = context.JsonTypeInfo.Type;
+        if (type.IsGenericType)
+        {
+            var genericTypeName = type.GetGenericTypeDefinition().Name;
+            if (genericTypeName.Contains('`'))
+            {
+                genericTypeName = genericTypeName.Substring(0, genericTypeName.IndexOf('`'));
+            }
+            var genericArgs = string.Join("And", type.GetGenericArguments().Select(t => t.Name));
+            schema.Title = $"{genericTypeName}Of{genericArgs}";
+        }
+        else
+        {
+            schema.Title = type.Name;
+        }
+        return Task.CompletedTask;
+    });
+
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+});
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-        options.JsonSerializerOptions.TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver
+        // Configure custom modifiers to avoid circular reference loop issues with EF Core Navigation properties
+        options.JsonSerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
             Modifiers = { JsonContractModifiers.IgnoreVirtualPropertiesModifier }
         };
     });
 
+// Configure the same modifier for Minimal API / OpenAPI pipeline
 builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
 {
-    options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-    options.SerializerOptions.TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver
+    options.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
     {
         Modifiers = { JsonContractModifiers.IgnoreVirtualPropertiesModifier }
     };
-});
-
-builder.Services.AddOpenApi(options =>
-{
-    // Custom Schema ID generation for nested generic classes to avoid raw names (like ResponseModel_1)
-    options.CreateSchemaReferenceId = jsonType =>
-    {
-        var defaultId = Microsoft.AspNetCore.OpenApi.OpenApiOptions.CreateDefaultSchemaReferenceId(jsonType);
-        if (defaultId is null)
-        {
-            return null;
-        }
-
-        return GetFriendlySchemaId(jsonType.Type);
-    };
-
-    static string GetFriendlySchemaId(Type type)
-    {
-        if (type.IsGenericType)
-        {
-            var name = type.Name;
-            var index = name.IndexOf('`');
-            if (index > 0)
-            {
-                name = name.Substring(0, index);
-            }
-            var genericArgs = type.GetGenericArguments();
-            var genericArgsFriendly = string.Join("And", genericArgs.Select(GetFriendlySchemaId));
-            return $"{name}Of{genericArgsFriendly}";
-        }
-        return type.Name;
-    }
-
-    // Configure security schemes in OpenAPI Document (for JWT "Authorize" unlock button in Swagger UI)
-    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
 });
 
 // Configure HTTPS redirection options so middleware knows the HTTPS port (Kestrel listens on 5925)
@@ -118,11 +114,11 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    app.MapOpenApi();
+    app.MapOpenApi(); // Generates JSON at /openapi/v1.json
     app.UseSwaggerUI(options =>
     {
-        options.SwaggerEndpoint("/openapi/v1.json", "API Ticket Application v1");
-        options.RoutePrefix = "swagger"; // Enables access at /swagger
+        options.SwaggerEndpoint("/openapi/v1.json", "v1");
+        options.RoutePrefix = "swagger"; // Exposes Swagger UI at /swagger
     });
 }
 else
@@ -132,7 +128,6 @@ else
 }
 
 // circuit breaker
-
 app.Use(async (context, next) =>
 {
     await next();
@@ -147,6 +142,7 @@ app.Use(async (context, next) =>
         return;
     }
 });
+
 // input validation
 app.Use(async (context, next) =>
 {
@@ -202,7 +198,6 @@ app.Use(async (context, next) =>
 
     await next.Invoke();
 });
-
 
 // 2. Security log events (đặt đầu ống)
 app.Use(async (context, next) =>
@@ -268,42 +263,51 @@ public static class InputValidator
     }
 }
 
-public sealed class BearerSecuritySchemeTransformer : Microsoft.AspNetCore.OpenApi.IOpenApiDocumentTransformer
+// ========== NATIVE OPENAPI SECURITY TRANSFORMER FOR .NET 10 ==========
+public class BearerSecuritySchemeTransformer : IOpenApiDocumentTransformer
 {
-    public Task TransformAsync(
-        Microsoft.OpenApi.OpenApiDocument document,
-        Microsoft.AspNetCore.OpenApi.OpenApiDocumentTransformerContext context,
-        CancellationToken cancellationToken)
+    private readonly IAuthenticationSchemeProvider _authenticationSchemeProvider;
+
+    public BearerSecuritySchemeTransformer(IAuthenticationSchemeProvider authenticationSchemeProvider)
     {
-        document.Components ??= new Microsoft.OpenApi.OpenApiComponents();
-        document.Components.SecuritySchemes ??= new Dictionary<string, Microsoft.OpenApi.IOpenApiSecurityScheme>();
+        _authenticationSchemeProvider = authenticationSchemeProvider;
+    }
 
-        document.Components.SecuritySchemes["Bearer"] = new Microsoft.OpenApi.OpenApiSecurityScheme
+    public async Task TransformAsync(OpenApiDocument document, OpenApiDocumentTransformerContext context, CancellationToken cancellationToken)
+    {
+        var authenticationSchemes = await _authenticationSchemeProvider.GetAllSchemesAsync();
+        if (authenticationSchemes.Any(authScheme => authScheme.Name == JwtBearerDefaults.AuthenticationScheme))
         {
-            Type = Microsoft.OpenApi.SecuritySchemeType.Http,
-            Scheme = "bearer",
-            BearerFormat = "JWT",
-            In = Microsoft.OpenApi.ParameterLocation.Header,
-            Description = "Hãy nhập JWT Token của bạn để xác thực các endpoint bảo mật (không cần tiền tố Bearer)."
-        };
+            var requirements = new Dictionary<string, IOpenApiSecurityScheme>
+            {
+                ["Bearer"] = new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "Bearer",
+                    In = ParameterLocation.Header,
+                    BearerFormat = "JWT"
+                }
+            };
+            document.Components ??= new OpenApiComponents();
+            document.Components.SecuritySchemes = requirements;
 
-        document.Security ??= new List<Microsoft.OpenApi.OpenApiSecurityRequirement>();
-
-        var requirement = new Microsoft.OpenApi.OpenApiSecurityRequirement
-        {
-            [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
-        };
-        document.Security.Add(requirement);
-
-        return Task.CompletedTask;
+            // Correct instantiation of security requirements using the standard Microsoft.OpenApi classes
+            var securityRequirement = new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+            };
+            document.Security ??= new List<OpenApiSecurityRequirement>();
+            document.Security.Add(securityRequirement);
+        }
     }
 }
 
+// ========== EF CORE CIRCULAR REFERENCE LOOP EXCLUDER ==========
 public static class JsonContractModifiers
 {
-    public static void IgnoreVirtualPropertiesModifier(System.Text.Json.Serialization.Metadata.JsonTypeInfo typeInfo)
+    public static void IgnoreVirtualPropertiesModifier(JsonTypeInfo typeInfo)
     {
-        if (typeInfo.Kind != System.Text.Json.Serialization.Metadata.JsonTypeInfoKind.Object)
+        if (typeInfo.Kind != JsonTypeInfoKind.Object)
         {
             return;
         }
