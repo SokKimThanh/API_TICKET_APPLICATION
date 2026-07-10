@@ -4,6 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.OpenApi;
+using System.Text.Json.Serialization.Metadata;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,12 +56,51 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// Register OpenAPI services with Bearer authentication transformer and custom schema generator
+builder.Services.AddOpenApi(options =>
+{
+    // Custom Schema ID Generator for Generic types in native .NET 10 OpenAPI
+    options.AddSchemaTransformer((schema, context, cancellationToken) =>
+    {
+        var type = context.JsonTypeInfo.Type;
+        if (type.IsGenericType)
+        {
+            var genericTypeName = type.GetGenericTypeDefinition().Name;
+            if (genericTypeName.Contains('`'))
+            {
+                genericTypeName = genericTypeName.Substring(0, genericTypeName.IndexOf('`'));
+            }
+            var genericArgs = string.Join("And", type.GetGenericArguments().Select(t => t.Name));
+            schema.Title = $"{genericTypeName}Of{genericArgs}";
+        }
+        else
+        {
+            schema.Title = type.Name;
+        }
+        return Task.CompletedTask;
+    });
+
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+});
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        // Configure custom modifiers to avoid circular reference loop issues with EF Core Navigation properties
+        options.JsonSerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
+        {
+            Modifiers = { JsonContractModifiers.IgnoreVirtualPropertiesModifier }
+        };
     });
-builder.Services.AddOpenApi();
+
+// Configure the same modifier for Minimal API / OpenAPI pipeline
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
+{
+    options.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
+    {
+        Modifiers = { JsonContractModifiers.IgnoreVirtualPropertiesModifier }
+    };
+});
 
 // Configure HTTPS redirection options so middleware knows the HTTPS port (Kestrel listens on 5925)
 builder.Services.AddHttpsRedirection(options =>
@@ -71,7 +114,12 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    app.MapOpenApi();
+    app.MapOpenApi(); // Generates JSON at /openapi/v1.json
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "v1");
+        options.RoutePrefix = "swagger"; // Exposes Swagger UI at /swagger
+    });
 }
 else
 {
@@ -80,7 +128,6 @@ else
 }
 
 // circuit breaker
-
 app.Use(async (context, next) =>
 {
     await next();
@@ -95,6 +142,7 @@ app.Use(async (context, next) =>
         return;
     }
 });
+
 // input validation
 app.Use(async (context, next) =>
 {
@@ -150,7 +198,6 @@ app.Use(async (context, next) =>
 
     await next.Invoke();
 });
-
 
 // 2. Security log events (đặt đầu ống)
 app.Use(async (context, next) =>
@@ -213,5 +260,73 @@ public static class InputValidator
         }
 
         return false;
+    }
+}
+
+// ========== NATIVE OPENAPI SECURITY TRANSFORMER FOR .NET 10 ==========
+public class BearerSecuritySchemeTransformer : IOpenApiDocumentTransformer
+{
+    private readonly IAuthenticationSchemeProvider _authenticationSchemeProvider;
+
+    public BearerSecuritySchemeTransformer(IAuthenticationSchemeProvider authenticationSchemeProvider)
+    {
+        _authenticationSchemeProvider = authenticationSchemeProvider;
+    }
+
+    public async Task TransformAsync(OpenApiDocument document, OpenApiDocumentTransformerContext context, CancellationToken cancellationToken)
+    {
+        var authenticationSchemes = await _authenticationSchemeProvider.GetAllSchemesAsync();
+        if (authenticationSchemes.Any(authScheme => authScheme.Name == JwtBearerDefaults.AuthenticationScheme))
+        {
+            var requirements = new Dictionary<string, IOpenApiSecurityScheme>
+            {
+                ["Bearer"] = new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "Bearer",
+                    In = ParameterLocation.Header,
+                    BearerFormat = "JWT"
+                }
+            };
+            document.Components ??= new OpenApiComponents();
+            document.Components.SecuritySchemes = requirements;
+
+            // Correct instantiation of security requirements using the standard Microsoft.OpenApi classes
+            var securityRequirement = new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+            };
+            document.Security ??= new List<OpenApiSecurityRequirement>();
+            document.Security.Add(securityRequirement);
+        }
+    }
+}
+
+// ========== EF CORE CIRCULAR REFERENCE LOOP EXCLUDER ==========
+public static class JsonContractModifiers
+{
+    public static void IgnoreVirtualPropertiesModifier(JsonTypeInfo typeInfo)
+    {
+        if (typeInfo.Kind != JsonTypeInfoKind.Object)
+        {
+            return;
+        }
+
+        // Ignore EF Core navigation/virtual properties to prevent circular references in JSON serialization and OpenAPI schemas.
+        for (int i = typeInfo.Properties.Count - 1; i >= 0; i--)
+        {
+            var prop = typeInfo.Properties[i];
+            var propInfo = typeInfo.Type.GetProperty(prop.Name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+            if (propInfo != null)
+            {
+                var isVirtual = (propInfo.GetMethod != null && propInfo.GetMethod.IsVirtual && !propInfo.GetMethod.IsFinal) ||
+                                (propInfo.SetMethod != null && propInfo.SetMethod.IsVirtual && !propInfo.SetMethod.IsFinal);
+
+                if (isVirtual)
+                {
+                    typeInfo.Properties.RemoveAt(i);
+                }
+            }
+        }
     }
 }
