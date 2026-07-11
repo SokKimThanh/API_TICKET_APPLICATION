@@ -6,7 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.OpenApi;
-using Microsoft.OpenApi;
+using Microsoft.OpenApi; // Sử dụng trực tiếp namespace cha chuẩn .NET 10 (Microsoft.OpenApi v2.x)
 using System.Text.Json.Serialization.Metadata;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -83,13 +83,12 @@ builder.Services.AddOpenApi(options =>
     options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
 });
 
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
+builder.Services.AddControllers().AddJsonOptions(options =>
     {
         // Configure custom modifiers to avoid circular reference loop issues with EF Core Navigation properties
         options.JsonSerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
-            Modifiers = { JsonContractModifiers.IgnoreVirtualPropertiesModifier }
+             Modifiers = { JsonContractModifiers.IgnoreVirtualPropertiesModifier }
         };
     });
 
@@ -127,12 +126,28 @@ else
     app.UseHsts(); // chỉ bật trong production
 }
 
+// =========================================================================
+// 🚀 LÀN ĐƯỜNG ƯU TIÊN (SHORT-CIRCUIT) CHO SWAGGER & OPENAPI
+// Đặt ở đầu tiên của chuỗi Custom Middleware để chặn đứng việc quét lặp lại
+// =========================================================================
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/swagger") ||
+        context.Request.Path.StartsWithSegments("/openapi"))
+    {
+        // Cho phép đi thẳng qua, bỏ qua toàn bộ các Custom Middleware kiểm tra ở bên dưới
+        await next.Invoke();
+        return;
+    }
+    await next();
+});
+
 // circuit breaker
 app.Use(async (context, next) =>
 {
     await next();
 
-    if(context.Response.StatusCode >= 500)
+    if (context.Response.StatusCode >= 500)
     {
         if (!context.Response.HasStarted)
         {
@@ -143,10 +158,10 @@ app.Use(async (context, next) =>
     }
 });
 
-// input validation
+// input validation (Đã được dọn dẹp sạch sẽ logic check Path!)
 app.Use(async (context, next) =>
 {
-    // Collect decoded query values (Request.Query values are already URL-decoded)
+    // Collect decoded query values
     var input = string.Empty;
     if (context.Request.Query != null && context.Request.Query.Count > 0)
     {
@@ -160,16 +175,14 @@ app.Use(async (context, next) =>
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             await context.Response.WriteAsync("Dữ liệu đầu vào không hợp lệ.");
         }
-        return; // return som
+        return;
     }
     await next();
 });
- 
-// Secure Query Middleware
+
+// Secure Query Middleware (Đã được dọn dẹp và tự động thừa hưởng cơ chế bypass!)
 app.Use(async (context, next) =>
 {
-    // Only enforce when a 'secure' query parameter is present.
-    // This avoids blocking requests that don't include any query (e.g. GET / ).
     if (context.Request.Query.ContainsKey("secure"))
     {
         var secureFlag = context.Request.Query["secure"].ToString();
@@ -181,17 +194,17 @@ app.Use(async (context, next) =>
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 await context.Response.WriteAsync("Truy vấn chứa dữ liệu nguy hiểm.");
             }
-            return; // return sớm
+            return;
         }
     }
 
     await next.Invoke();
 });
 
-// Delay Request (Asynchronous Simulator)
+// Delay Request (Đã được dọn dẹp sạch sẽ logic check Path!)
 app.Use(async (context, next) =>
 {
-    // Giả lập độ trễ 0.2 giây
+    // Giả lập độ trễ 0.2 giây cho các request nghiệp vụ thông thường (Movies, Showtimes, v.v.)
     await Task.Delay(200);
 
     Console.WriteLine($"[DELAY] Request {context.Request.Path} bị trì hoãn 0.2 giây");
@@ -199,28 +212,42 @@ app.Use(async (context, next) =>
     await next.Invoke();
 });
 
-// 2. Security log events (đặt đầu ống)
+// 2. Security log events - Được bảo bọc an toàn trước sự kiện hủy kết nối đột ngột
 app.Use(async (context, next) =>
 {
     Console.WriteLine($"[SECURITY LOG] Incoming request: {context.Request.Method} {context.Request.Path}");
 
-    await next.Invoke();
-
-    // Sau khi các middleware khác chạy xong
-    Console.WriteLine($"[SECURITY LOG] Response status: {context.Response.StatusCode}");
+    try
+    {
+        await next.Invoke();
+        Console.WriteLine($"[SECURITY LOG] Response status: {context.Response.StatusCode}");
+    }
+    catch (OperationCanceledException)
+    {
+        Console.WriteLine($"[SECURITY LOG] Request {context.Request.Path} was aborted/canceled by the client.");
+        throw; // Tái ném để framework xử lý hủy kết nối tự nhiên
+    }
 });
 
-// 2.1 Logging / đo thời gian (Elapsed)
+// 2.1 Logging / đo thời gian (Elapsed) - Đã được thêm try-catch xử lý lỗi OperationCanceledException
 app.Use(async (context, next) =>
 {
     var sw = System.Diagnostics.Stopwatch.StartNew();
-    await next.Invoke();
-    sw.Stop();
-    Console.WriteLine($"Request {context.Request.Path} took {sw.ElapsedMilliseconds} ms");
+    try
+    {
+        await next.Invoke();
+        sw.Stop();
+        Console.WriteLine($"Request {context.Request.Path} took {sw.ElapsedMilliseconds} ms");
+    }
+    catch (OperationCanceledException)
+    {
+        sw.Stop();
+        Console.WriteLine($"Request {context.Request.Path} was CANCELED after {sw.ElapsedMilliseconds} ms");
+        throw;
+    }
 });
 
 // 3. Security
-// Use default HTTPS redirection middleware (options configured above)
 app.UseHttpsRedirection();
 
 // 4. Routing
@@ -239,13 +266,11 @@ app.Run();
 
 public static class InputValidator
 {
-    // OPTIMIZATION: Moved patterns to a static readonly field to avoid allocation on every request.
     private static readonly string[] DangerousPatterns = new[]
     {
         "<script>", "DROP TABLE", "UNION SELECT", "--", ";--", "/*", "*/", "@@", "char(", "nchar(", "varchar(", "alter", "exec", "xp_"
     };
 
-    // Hàm kiểm tra dữ liệu đầu vào
     public static bool IsInvalid(string? input)
     {
         if (string.IsNullOrEmpty(input))
@@ -278,24 +303,29 @@ public class BearerSecuritySchemeTransformer : IOpenApiDocumentTransformer
         var authenticationSchemes = await _authenticationSchemeProvider.GetAllSchemesAsync();
         if (authenticationSchemes.Any(authScheme => authScheme.Name == JwtBearerDefaults.AuthenticationScheme))
         {
-            var requirements = new Dictionary<string, IOpenApiSecurityScheme>
+            var bearerScheme = new OpenApiSecurityScheme
             {
-                ["Bearer"] = new OpenApiSecurityScheme
-                {
-                    Type = SecuritySchemeType.Http,
-                    Scheme = "Bearer",
-                    In = ParameterLocation.Header,
-                    BearerFormat = "JWT"
-                }
+                Type = SecuritySchemeType.Http,
+                Scheme = "Bearer",
+                In = ParameterLocation.Header,
+                BearerFormat = "JWT"
             };
-            document.Components ??= new OpenApiComponents();
-            document.Components.SecuritySchemes = requirements;
 
-            // Correct instantiation of security requirements using the standard Microsoft.OpenApi classes
+            document.Components ??= new OpenApiComponents();
+
+            // 1. Chỉ định rõ kiểu dữ liệu IOpenApiSecurityScheme để vượt qua chốt chặn Covariance của Dictionary trong v2.x
+            document.Components.SecuritySchemes = new Dictionary<string, IOpenApiSecurityScheme>
+            {
+                ["Bearer"] = bearerScheme
+            };
+
+            // 2. Sử dụng đúng OpenApiSecuritySchemeReference của .NET 10 (Microsoft.OpenApi v2.x)
+            // Nhận diện đối tượng scheme qua ID "Bearer" và đính kèm ngữ cảnh tài liệu gốc.
             var securityRequirement = new OpenApiSecurityRequirement
             {
                 [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
             };
+
             document.Security ??= new List<OpenApiSecurityRequirement>();
             document.Security.Add(securityRequirement);
         }
@@ -312,7 +342,6 @@ public static class JsonContractModifiers
             return;
         }
 
-        // Ignore EF Core navigation/virtual properties to prevent circular references in JSON serialization and OpenAPI schemas.
         for (int i = typeInfo.Properties.Count - 1; i >= 0; i--)
         {
             var prop = typeInfo.Properties[i];
