@@ -28,6 +28,18 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// ========== CONFIGURE CORS ==========
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // ========== CONFIGURE JWT AUTHENTICATION ==========
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT Secret Key is not configured.");
@@ -271,6 +283,9 @@ app.UseHttpsRedirection();
 
 // 4. Routing
 app.UseRouting();
+
+// CORS Middleware (Must be placed after UseRouting and before UseAuthentication)
+app.UseCors("AllowFrontend");
 
 // 5. Auth
 app.UseAuthentication();

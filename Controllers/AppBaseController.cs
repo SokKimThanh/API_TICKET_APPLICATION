@@ -84,7 +84,7 @@ namespace API_TICKET_APPLICATION.Controllers
 
         protected int? GetUserId()
         {
-            var userIdClaim = User.FindFirst("UserId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var userId)) return userId;
             return null;
         }
