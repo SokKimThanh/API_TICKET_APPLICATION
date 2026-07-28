@@ -116,21 +116,28 @@ namespace API_TICKET_APPLICATION.Controllers
                 if (request.SeatIds == null || !request.SeatIds.Any())
                     return BadRequestError("Phải chọn ít nhất một ghế");
 
-                var showtime = await _context.Showtimes.FirstOrDefaultAsync(s => s.Id == request.ShowtimeId && s.IsDeleted == false);
+                // OPTIMIZATION: Use .AsNoTracking() for read-only queries during validation to avoid change tracker overhead.
+                var showtime = await _context.Showtimes.AsNoTracking().FirstOrDefaultAsync(s => s.Id == request.ShowtimeId && s.IsDeleted == false);
                 if (showtime == null) return BadRequestError("Lịch chiếu không tồn tại");
 
                 if (showtime.StartTime < DateTime.UtcNow)
                     return BadRequestError("Lịch chiếu này đã bắt đầu hoặc đã kết thúc");
 
                 // Kiểm tra ghế có tồn tại trong rạp của lịch chiếu không
-                var seats = await _context.Seats.Where(s => request.SeatIds.Contains(s.Id) && s.CinemaHallId == showtime.CinemaHallId && s.IsDeleted == false).ToListAsync();
+                // OPTIMIZATION: Use .AsNoTracking() here as well since the returned Seat list is only used for read-only count checks.
+                var seats = await _context.Seats.AsNoTracking().Where(s => request.SeatIds.Contains(s.Id) && s.CinemaHallId == showtime.CinemaHallId && s.IsDeleted == false).ToListAsync();
                 if (seats.Count != request.SeatIds.Count)
                     return BadRequestError("Một số ghế không tồn tại hoặc không thuộc phòng chiếu này");
 
                 // Kiểm tra ghế đã được đặt chưa (Double booking check)
+                // OPTIMIZATION: Rewrite query to use inner join via navigation property (`t.Booking`) and apply .AsNoTracking().
+                // This produces a cleaner SQL query and avoids the expensive correlated subquery while reducing memory tracking overhead.
                 var bookedSeatIds = await _context.Tickets
-                    .Where(t => t.IsDeleted == false)
-                    .Where(t => _context.Bookings.Where(b => b.ShowtimeId == request.ShowtimeId && b.IsDeleted == false && b.Status != "Cancelled").Select(b => b.Id).Contains(t.BookingId))
+                    .AsNoTracking()
+                    .Where(t => t.IsDeleted == false &&
+                                t.Booking.ShowtimeId == request.ShowtimeId &&
+                                t.Booking.IsDeleted == false &&
+                                t.Booking.Status != "Cancelled")
                     .Select(t => t.SeatId)
                     .ToListAsync();
 
