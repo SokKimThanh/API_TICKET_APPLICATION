@@ -4,3 +4,7 @@
 
 **Learning:** Middleware that runs on every request should avoid allocations. Creating a new array of search patterns in every call is a common anti-pattern.
 **Action:** Move static patterns to `static readonly` fields, and use `SearchValues` (in .NET 9+) for efficient string searching.
+
+## 2026-07-07 - Navigation Property Joins vs. Correlated Subqueries
+**Learning:** Using nested/correlated subqueries with `.Contains()` (e.g. `_context.Bookings.Where(...).Select(b => b.Id).Contains(t.BookingId)`) for checking double bookings produces inefficient and complex subqueries in SQL, and misses opportunities for EF Core's built-in relationship joining.
+**Action:** Always prefer joining tables using EF Core navigation properties (e.g. `t.Booking.ShowtimeId`) and append `.AsNoTracking()` to avoid any tracking overhead on validator/read-only checks. This compiles to a clean SQL `INNER JOIN` or `LEFT JOIN` which database query planners can optimize much better.
