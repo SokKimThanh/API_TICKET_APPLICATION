@@ -29,12 +29,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ========== CONFIGURE CORS ==========
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173")
-              .AllowAnyHeader()
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins);
+        }
+        policy.AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
     });
