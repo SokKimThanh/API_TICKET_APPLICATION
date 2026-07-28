@@ -2,7 +2,7 @@
 
 Một hệ thống **Database-First Movie Booking API** chuyên nghiệp được xây dựng trên nền tảng **ASP.NET Core (.NET 10)**, tích hợp cơ chế phân quyền bảo mật (role-based authorization), quy trình đặt vé an toàn qua database transaction, và tài liệu hướng dẫn chuẩn OpenAPI/Swagger tương tác trực quan.
 
-**Phiên bản hiện tại:** `v1.1.0-mvp` (Phase 1 - Hoàn thành Core MVP) ✅
+**Phiên bản hiện tại:** `v1.2.0-security-openapi` (Gia cố bảo mật & Tối ưu hóa Swagger Schema) 🛡️⚡
 
 ---
 
@@ -27,17 +27,19 @@ Một hệ thống **Database-First Movie Booking API** chuyên nghiệp đượ
 #### 1. **Chuẩn hóa phản hồi & Định danh Schema tự động**
 - ✅ `ResponseModel<T>` — Lớp bọc hợp nhất mọi dữ liệu phản hồi từ API.
 - ✅ `PagedData<T>` — Cấu trúc dữ liệu phân trang chuẩn hóa cho mọi Controller.
-- ✅ **Định danh Schema tự động cho Generic Model:**
-  Hệ thống cấu hình bộ sinh ID Schema tự động (`options.AddSchemaTransformer` trong `Program.cs`) nhằm chuẩn hóa các kiểu dữ liệu generic phức tạp. Điều này giúp Swagger UI hiển thị giao diện cực kỳ sạch sẽ, tránh lỗi trùng tên hoặc các hậu tố mặc định không rõ ràng (như `ResponseModel_1`).
+- ✅ **Định danh Schema tự động cho Generic Model (Đã phẳng hóa - Flattened):**
+  Hệ thống cấu hình bộ sinh ID Schema tự động (`options.AddSchemaTransformer` trong `Program.cs` thông qua `OpenApiSchemaHelper`) nhằm phẳng hóa và chuẩn hóa các kiểu dữ liệu generic phức tạp. Điều này giúp Swagger UI hiển thị giao diện cực kỳ sạch sẽ, loại bỏ các tầng lồng nhau không cần thiết, giúp các công cụ sinh code ở phía Front-end dễ dàng sinh mã nguồn (TypeScript client, v.v.).
 
-  **Danh sách các Schema cụ thể được ánh xạ tự động:**
-  - `ResponseModel<Movie>` ➔ **`ResponseModelOfMovie`**
-  - `ResponseModel<PagedData<Movie>>` ➔ **`ResponseModelOfPagedDataOfMovie`**
-  - `ResponseModel<UserResponseDto>` ➔ **`ResponseModelOfUserResponseDto`**
-  - `ResponseModel<LoginResponseDto>` ➔ **`ResponseModelOfLoginResponseDto`**
-  - `ResponseModel<Booking>` ➔ **`ResponseModelOfBooking`**
-  - `ResponseModel<Ticket>` ➔ **`ResponseModelOfTicket`**
-  - Các lỗi đầu vào được trả về theo dạng: **`ResponseModelOfObject`**
+  **Cơ chế phẳng hóa và đặt tên Schema cụ thể:**
+  - `ResponseModel<PagedData<T>>` ➔ **`PagedResponseOf{T}`** (Ví dụ: `PagedResponseOfMovie`)
+  - `ResponseModel<T>` ➔ **`ResponseOf{T}`** (Ví dụ: `ResponseOfMovie`, `ResponseOfUserResponseDto`, `ResponseOfLoginResponseDto`, `ResponseOfBooking`, `ResponseOfTicket`)
+  - `PagedData<T>` ➔ **`PagedDataOf{T}`** (Ví dụ: `PagedDataOfMovie`)
+  - Các lỗi đầu vào được trả về theo dạng: **`ResponseOfObject`**
+
+- ✅ **Mô tả Schema động tiếng Việt (Dynamic Schema Descriptions):**
+  Khi chạy trong môi trường **Development**, hệ thống sẽ tự động sinh mô tả tiếng Việt (`schema.Description`) chi tiết cho từng Schema generic dựa trên kiểu dữ liệu gốc lồng nhau bên trong. Ví dụ:
+  - `ResponseModel<PagedData<Movie>>` sẽ nhận được mô tả: *"Mô hình phản hồi API chuẩn chứa dữ liệu phân trang phục vụ cho model Movie (chỉ dùng cho môi trường Development)"*.
+  - Giúp lập trình viên phía Front-end nắm bắt rõ ràng cấu trúc dữ liệu mong đợi mà không cần lục tìm mã nguồn Backend.
 
 - ✅ Các mã trạng thái HTTP chuẩn hóa: `200 OK`, `201 Created`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `500 Internal Server Error`.
 
@@ -118,7 +120,10 @@ Hệ thống quản lý **6 thực thể cốt lõi** có quan hệ chặt chẽ
 ## Danh sách các Endpoint chính (Phase 1)
 
 ### Xác thực tài khoản (Authentication)
-- `POST /api/auth/register` — Đăng ký tài khoản người dùng mới (Mặc định vai trò "User").
+- `POST /api/auth/register` — Đăng ký tài khoản người dùng mới:
+  - Hỗ trợ truyền thuộc tính `Role` tùy chọn (Mặc định vai trò là `"Customer"`, chuẩn hóa chữ hoa/thường để khớp check constraint).
+  - Tích hợp cơ chế **chống nâng quyền trái phép (Privilege Escalation Prevention)**: Chỉ cho phép đăng ký tài khoản với vai trò `"Admin"` nếu hệ thống chưa có bất kỳ Admin nào hoạt động (Bootstrap Admin) HOẶC người gửi yêu cầu đã xác thực thành công và có quyền `"Admin"`.
+  - Được kiểm chứng kỹ càng qua bộ kiểm thử tích hợp `request_auth.http`.
 - `POST /api/auth/login` — Đăng nhập, nhận Token JWT phục vụ cho các yêu cầu tiếp theo.
 
 ### Quản lý Phim (Movies)
@@ -296,6 +301,18 @@ Trong Phase 2, hệ thống sẽ được mở rộng để hỗ trợ mô hình
 ---
 
 ## Lịch sử thay đổi (Changelog)
+
+### [2026-07-28] — v1.2.0-security-openapi (Security Hardening & Swagger Schema Optimization) 🛡️⚡
+- **Gia cố bảo mật Endpoint Register (Chống nâng quyền trái phép):**
+  - Bổ sung trường tùy chọn `Role` vào `RegisterRequest` kèm theo validation chặt chẽ trong `UserValidator`.
+  - Chặn đứng lỗ hổng leo thang đặc quyền (Privilege Escalation) bằng cách chỉ cho phép tạo tài khoản `Admin` trong giai đoạn Bootstrap (chưa có Admin nào hoạt động trong DB) hoặc khi yêu cầu được gửi từ một `Admin` đã đăng nhập.
+  - Chuẩn hóa đầu vào của Role thành `Customer` hoặc `Admin` để tránh lỗi Check Constraint của cơ sở dữ liệu.
+  - Cập nhật file kiểm thử tích hợp `request_auth.http` chứng minh các kịch bản chặn nâng quyền và đăng ký thành công.
+- **Tối ưu hóa OpenAPI/Swagger Schema Naming (Flattened Naming):**
+  - Tích hợp `OpenApiSchemaHelper` định danh lại Schema cho các kiểu Generic lồng nhau: phẳng hóa từ `ResponseModel<PagedData<Movie>>` thành `PagedResponseOfMovie`, hay `ResponseModel<Movie>` thành `ResponseOfMovie`.
+  - Sinh mô tả chi tiết bằng tiếng Việt sống động cho từng schema generic dựa trên các tham số kiểu (Generic Arguments) thực tế khi chạy trong môi trường `Development`.
+- **Đồng bộ hóa kiểm thử & Sửa lỗi:**
+  - Toàn bộ 5 kịch bản kiểm thử `.http` đã được cập nhật đồng bộ và xác nhận chạy thành công trên môi trường cục bộ.
 
 ### [2024-12-16] — Cập nhật bảo mật & OpenAPI nâng cao (Phiên bản v1.1.0-mvp)
 - **Cải tiến tài liệu OpenAPI:**
