@@ -91,22 +91,7 @@ builder.Services.AddOpenApi(options =>
             // Tự động bổ sung mô tả (description) cho các schema generic trong môi trường Development (chỉ cho học tập/kiểm thử)
             if (builder.Environment.IsDevelopment())
             {
-                var genericTypeName = type.GetGenericTypeDefinition().Name;
-                if (genericTypeName.Contains('`'))
-                {
-                    genericTypeName = genericTypeName.Substring(0, genericTypeName.IndexOf('`'));
-                }
-                var genericTypeDefinition = type.GetGenericTypeDefinition();
-                var innerTypes = string.Join(", ", type.GetGenericArguments().Select(OpenApiSchemaHelper.GetFriendlyTypeName));
-
-                if (genericTypeDefinition == typeof(PagedData<>) || genericTypeName == "PagedData")
-                {
-                    schema.Description = $"Mô hình phân trang dữ liệu phục vụ cho model {innerTypes} (chỉ dùng cho môi trường Development)";
-                }
-                else if (genericTypeDefinition == typeof(ResponseModel<>) || genericTypeName == "ResponseModel")
-                {
-                    schema.Description = $"Mô hình phản hồi API chuẩn phục vụ cho model {innerTypes} (chỉ dùng cho môi trường Development)";
-                }
+                schema.Description = OpenApiSchemaHelper.GetSchemaDescription(type);
             }
         }
         else
@@ -412,15 +397,79 @@ public static class OpenApiSchemaHelper
     {
         if (type.IsGenericType)
         {
-            var genericTypeName = type.GetGenericTypeDefinition().Name;
+            var genericTypeDefinition = type.GetGenericTypeDefinition();
+            var genericTypeName = genericTypeDefinition.Name;
             if (genericTypeName.Contains('`'))
             {
                 genericTypeName = genericTypeName.Substring(0, genericTypeName.IndexOf('`'));
             }
-            var genericArgs = string.Join("And", type.GetGenericArguments().Select(GetCleanTypeName));
+
+            var typeArguments = type.GetGenericArguments();
+
+            // Tối ưu hóa đặt tên Schema: phẳng hóa các tầng lồng nhau
+            // 1. Phản hồi phân trang: ResponseModel<PagedData<T>> -> PagedResponseOfT
+            if (genericTypeDefinition == typeof(ResponseModel<>) && typeArguments.Length == 1)
+            {
+                var innerType = typeArguments[0];
+                if (innerType.IsGenericType && innerType.GetGenericTypeDefinition() == typeof(PagedData<>))
+                {
+                    var pagedInnerType = innerType.GetGenericArguments()[0];
+                    return $"PagedResponseOf{GetCleanTypeName(pagedInnerType)}";
+                }
+            }
+
+            // 2. Phản hồi chuẩn: ResponseModel<T> -> ResponseOfT
+            if (genericTypeDefinition == typeof(ResponseModel<>) && typeArguments.Length == 1)
+            {
+                return $"ResponseOf{GetCleanTypeName(typeArguments[0])}";
+            }
+
+            // 3. Phân trang thông thường: PagedData<T> -> PagedDataOfT
+            if (genericTypeDefinition == typeof(PagedData<>) && typeArguments.Length == 1)
+            {
+                return $"PagedDataOf{GetCleanTypeName(typeArguments[0])}";
+            }
+
+            // Các trường hợp generic khác
+            var genericArgs = string.Join("And", typeArguments.Select(GetCleanTypeName));
             return $"{genericTypeName}Of{genericArgs}";
         }
         return type.Name;
+    }
+
+    public static string GetSchemaDescription(Type type)
+    {
+        if (type.IsGenericType)
+        {
+            var genericTypeDefinition = type.GetGenericTypeDefinition();
+            var genericTypeName = genericTypeDefinition.Name;
+            if (genericTypeName.Contains('`'))
+            {
+                genericTypeName = genericTypeName.Substring(0, genericTypeName.IndexOf('`'));
+            }
+
+            var typeArguments = type.GetGenericArguments();
+            var innerFriendlyNames = string.Join(", ", typeArguments.Select(GetFriendlyTypeName));
+
+            if (genericTypeDefinition == typeof(ResponseModel<>) && typeArguments.Length == 1)
+            {
+                var innerType = typeArguments[0];
+                if (innerType.IsGenericType && innerType.GetGenericTypeDefinition() == typeof(PagedData<>))
+                {
+                    var pagedInnerType = innerType.GetGenericArguments()[0];
+                    return $"Mô hình phản hồi API chuẩn chứa dữ liệu phân trang phục vụ cho model {GetFriendlyTypeName(pagedInnerType)} (chỉ dùng cho môi trường Development)";
+                }
+                return $"Mô hình phản hồi API chuẩn phục vụ cho model {innerFriendlyNames} (chỉ dùng cho môi trường Development)";
+            }
+
+            if (genericTypeDefinition == typeof(PagedData<>) && typeArguments.Length == 1)
+            {
+                return $"Mô hình phân trang dữ liệu phục vụ cho model {innerFriendlyNames} (chỉ dùng cho môi trường Development)";
+            }
+
+            return $"Mô hình generic {genericTypeName} phục vụ cho model {innerFriendlyNames} (chỉ dùng cho môi trường Development)";
+        }
+        return $"Mô hình {type.Name} (chỉ dùng cho môi trường Development)";
     }
 }
 
