@@ -93,6 +93,20 @@ builder.Services.AddOpenApi(options =>
             }
             var genericArgs = string.Join("And", type.GetGenericArguments().Select(t => t.Name));
             schema.Title = $"{genericTypeName}Of{genericArgs}";
+
+            // Tự động bổ sung mô tả (description) cho các schema generic trong môi trường Development (chỉ cho học tập/kiểm thử)
+            if (builder.Environment.IsDevelopment())
+            {
+                var genericTypeDefinition = type.GetGenericTypeDefinition();
+                if (genericTypeDefinition == typeof(PagedData<>) || genericTypeName == "PagedData")
+                {
+                    schema.Description = "Mô hình phân trang dữ liệu generic (chỉ dùng cho môi trường Development)";
+                }
+                else if (genericTypeDefinition == typeof(ResponseModel<>) || genericTypeName == "ResponseModel")
+                {
+                    schema.Description = "Mô hình phản hồi API chuẩn generic (chỉ dùng cho môi trường Development)";
+                }
+            }
         }
         else
         {
