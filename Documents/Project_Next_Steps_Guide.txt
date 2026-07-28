@@ -1,0 +1,75 @@
+﻿Hướng Dẫn Từng Bước: Hoàn Thiện Dự Án API Ticket Application
+Tài liệu này cung cấp lộ trình chi tiết từng bước để hoàn thiện dự án API_TICKET_APPLICATION dựa trên tình trạng hiện tại. Mục tiêu là hoàn thiện các tính năng cốt lõi và đảm bảo tính ổn định để sẵn sàng chuyển sang giai đoạn phát triển Frontend. Không đặt nặng việc nâng cấp kiến trúc phức tạp lúc này. Mỗi phần đều bao gồm cả bước kiểm thử (testing) trực tiếp để phù hợp với việc quay video hướng dẫn liền mạch.
+Giai đoạn 1: Hoàn thiện CRUD cho các Entity còn lại & Global Error Handling
+Mục tiêu: Xây dựng đầy đủ các API quản lý cơ bản và chuẩn hóa định dạng trả về khi có lỗi, tránh rò rỉ thông tin (Information Leakage).
+Bước 1: Xây dựng Global Error Handling (Tránh lộ chi tiết Exception)
+* Lý do (Từ bài học 15/05/2025): Ngăn chặn việc trả về ex.Message trực tiếp cho client, tránh lộ cấu trúc nội bộ của hệ thống.
+* Thực hiện:
+   1. Trong Program.cs, tìm phần cấu hình middleware app.UseExceptionHandler("/Error").
+   2. Tạo một Controller mới ErrorController.cs (hoặc sử dụng Middleware tùy chỉnh nếu thích).
+   3. Trong ErrorController, bắt các Exception và trả về một đối tượng JSON chuẩn (ví dụ: new { error = "Đã xảy ra lỗi hệ thống, vui lòng thử lại sau." }).
+   4. Cập nhật MoviesController.cs (và các Controller khác) để bỏ việc return BadRequest(ex.Message);, thay vào đó để Exception tự sủi bọt (bubble up) cho Global Handler xử lý.
+* Kiểm thử (Quay video):
+   * Mở Postman/Swagger.
+   * Gọi một API cố tình gây lỗi (ví dụ: truyền dữ liệu sai định dạng để sinh lỗi EF Core).
+   * Xác nhận Response trả về là thông báo lỗi chung chung (HTTP 500) thay vì stack trace hay ex.Message chi tiết.
+Bước 2: Hoàn thiện API cho các Entity (Users, Showtimes, Tickets, v.v.)
+* Lý do: Dự án hiện tại dường như chỉ mới tập trung vào MoviesController. Cần CRUD đầy đủ cho nghiệp vụ đặt vé.
+* Thực hiện (Cho từng Controller - ví dụ ShowtimesController):
+   1. Tạo ShowtimesController.cs kế thừa từ AppBaseController.
+   2. Triển khai các endpoint cơ bản: GET /api/showtimes, GET /api/showtimes/{id}, POST /api/showtimes, PUT /api/showtimes/{id}, DELETE /api/showtimes/{id}.
+   3. Lưu ý quan trọng (Từ bài học 06/07/2026): Trong các endpoint GET, bắt buộc phải sử dụng .AsNoTracking() khi query qua EF Core. (ví dụ: _context.Showtimes.AsNoTracking().ToList()).
+   4. Sử dụng lại các helper method từ AppBaseController (như OkResponse, CreatedResponse, v.v.) để chuẩn hóa đầu ra.
+* Kiểm thử (Quay video):
+   * Sử dụng Swagger/Postman để gọi từng endpoint (GET, POST, PUT, DELETE) của ShowtimesController.
+   * Kiểm tra Database để xác nhận dữ liệu đã được thêm/sửa/xóa đúng chuẩn.
+   * Kiểm tra định dạng JSON Response có đúng form của AppBaseController không.
+Giai đoạn 2: Bổ sung Validation Đầu Vào Chuyên Sâu
+Mục tiêu: Kiểm soát chặt chẽ dữ liệu gửi lên từ client, đảm bảo tính toàn vẹn của Database. Middleware InputValidator hiện tại chỉ chặn SQLi/XSS cơ bản, chưa đủ cho logic nghiệp vụ.
+Bước 3: Tích hợp FluentValidation cho DTOs
+* Lý do: Việc validate bằng [Required], [MaxLength] (Data Annotations) khá rời rạc. Cần một cách tập trung hơn để kiểm tra logic (ví dụ: giá vé không được âm, giờ chiếu phải ở tương lai).
+* Thực hiện:
+   1. Cài đặt package: dotnet add package FluentValidation.AspNetCore.
+   2. Tạo thư mục Validators/.
+   3. Tạo MovieDtoValidator.cs (nếu dùng DTO) hoặc MovieValidator.cs (nếu dùng trực tiếp Model).
+   4. Định nghĩa các rule:
+RuleFor(x => x.Title).NotEmpty().WithMessage("Tiêu đề không được để trống");
+RuleFor(x => x.ReleaseDate).GreaterThan(DateTime.Now).WithMessage("Ngày chiếu phải ở tương lai");
+
+   5. Đăng ký validator trong Program.cs.
+   * Kiểm thử (Quay video):
+   * Gửi một POST request qua Swagger với Title rỗng hoặc ReleaseDate trong quá khứ.
+   * Xác nhận API trả về HTTP 400 Bad Request kèm theo chính xác câu thông báo lỗi đã cấu hình.
+Giai đoạn 3: Phân Quyền (Role-based Authorization)
+Mục tiêu: Phân biệt rõ quyền hạn giữa Admin (thêm, sửa, xóa phim) và User bình thường (chỉ xem phim, đặt vé). Hệ thống JWT đã được cấu hình, nhưng chưa phân quyền rõ ràng.
+Bước 4: Thêm Role vào JWT và Cấu hình Policy
+   * Lý do: Ngăn chặn người dùng thường gọi các API nhạy cảm.
+   * Thực hiện:
+   1. Trong lúc tạo token (hàm Login ở UsersController hoặc tương tự), thêm Claim Role: new Claim(ClaimTypes.Role, user.Role).
+   2. Trong MoviesController:
+   * Endpoint GET: Thêm [AllowAnonymous] hoặc chỉ [Authorize] (bất kỳ ai đăng nhập cũng xem được).
+   * Endpoint POST, PUT, DELETE: Thêm [Authorize(Roles = "Admin")].
+   * Kiểm thử (Quay video):
+   1. Đăng nhập bằng tài khoản User thường, copy token.
+   2. Cấu hình token đó vào Swagger (nút Authorize).
+   3. Gọi GET /movies -> Thành công (HTTP 200).
+   4. Gọi POST /movies -> Thất bại (HTTP 403 Forbidden).
+   5. Lặp lại quy trình với tài khoản Admin, gọi POST /movies -> Thành công (HTTP 201).
+Giai đoạn 4: Tối Ưu Hóa Middleware (Theo khuyến nghị 06/07/2026)
+Mục tiêu: Cải thiện hiệu năng của các Custom Middleware hiện có trong Program.cs.
+Bước 5: Tối ưu InputValidator Middleware
+   * Lý do: Tránh khởi tạo mảng DangerousPatterns mỗi lần request tới, gây tốn bộ nhớ (Memory Allocation).
+   * Thực hiện:
+   1. Kiểm tra lớp InputValidator trong Program.cs.
+   2. Xác nhận DangerousPatterns đã là static readonly string[].
+   3. (Tùy chọn, nâng cao nếu muốn): Thay thế foreach và .Contains bằng SearchValues.Create(DangerousPatterns) (nếu .NET 9+ hỗ trợ tốt, hiện đang là .NET 10) để tăng tốc độ tìm kiếm chuỗi.
+   * Kiểm thử (Quay video):
+   * Gửi một request chứa tham số query nguy hiểm: GET /api/movies?search=DROP TABLE.
+   * Xác nhận hệ thống trả về HTTP 400 Bad Request. (Bước này chủ yếu xác nhận việc tối ưu code không làm hỏng logic hiện tại).
+Tổng Kết và Chuẩn Bị Cho Frontend
+Sau khi hoàn thành 5 bước trên, dự án API Backend đã đạt đủ độ "chín":
+   1. Chức năng: CRUD đầy đủ cho các bảng.
+   2. Bảo mật: JWT hoạt động, có phân quyền, chống lộ lỗi hệ thống, có chặn tấn công cơ bản ở Middleware.
+   3. Hiệu năng: Có sử dụng .AsNoTracking(), Middleware tối ưu, có Circuit Breaker chống quá tải.
+   4. Chất lượng dữ liệu: Dữ liệu đầu vào được kiểm tra nghiêm ngặt bằng FluentValidation.
+Lúc này, bạn hoàn toàn có thể tự tin cung cấp Swagger URL cho nhóm Frontend (hoặc tự mình làm Frontend) để bắt đầu ghép nối giao diện.
