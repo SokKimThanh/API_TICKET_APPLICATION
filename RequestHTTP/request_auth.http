@@ -9,10 +9,22 @@ Content-Type: application/json
 {
   "fullName": "System Admin",
   "email": "admin@example.com",
-  "password": "AdminPassword123"
+  "password": "AdminPassword123",
+  "role": "Admin"
 }
 
-### 2. Register User
+### 2. Register Customer with explicit Customer role
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Customer User",
+  "email": "customer@example.com",
+  "password": "CustomerPassword123",
+  "role": "Customer"
+}
+
+### 3. Register User (default role Customer)
 POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
@@ -22,7 +34,18 @@ Content-Type: application/json
   "password": "UserPassword123"
 }
 
-### 3. Login as Admin
+### 4. Register with invalid role
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Invalid User",
+  "email": "invalid@example.com",
+  "password": "InvalidPassword123",
+  "role": "InvalidRole"
+}
+
+### 5. Login as Admin
 # @name loginAdmin
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
@@ -36,7 +59,7 @@ Content-Type: application/json
     client.global.set("authToken", response.body.data.token);
 %}
 
-### 4. Login as User
+### 6. Login as User
 # @name loginUser
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json

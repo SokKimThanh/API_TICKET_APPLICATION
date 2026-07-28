@@ -31,11 +31,13 @@ namespace API_TICKET_APPLICATION.Controllers
         {
             try
             {
+                var defaultRole = string.IsNullOrWhiteSpace(request.Role) ? "Customer" : request.Role.Trim();
+
                 var user = new User
                 {
                     FullName = request.FullName,
                     Email = request.Email,
-                    Role = "User" // Default role
+                    Role = defaultRole
                 };
 
                 var validation = UserValidator.ValidateRegistration(user, request.Password);
@@ -139,6 +141,7 @@ namespace API_TICKET_APPLICATION.Controllers
         public string FullName { get; set; } = null!;
         public string Email { get; set; } = null!;
         public string Password { get; set; } = null!;
+        public string? Role { get; set; }
     }
 
     public class LoginRequest
