@@ -45,7 +45,18 @@ Content-Type: application/json
   "role": "InvalidRole"
 }
 
-### 5. Login as Admin
+### 5. Register second Admin WITHOUT Authorization (Should fail with 403 Forbidden)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Imposter Admin",
+  "email": "imposter_admin@example.com",
+  "password": "AdminPassword123",
+  "role": "Admin"
+}
+
+### 6. Login as Admin to get token
 # @name loginAdmin
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
@@ -59,7 +70,19 @@ Content-Type: application/json
     client.global.set("authToken", response.body.data.token);
 %}
 
-### 6. Login as User
+### 7. Register second Admin WITH Authorization (Should succeed)
+POST {{baseUrl}}/api/auth/register
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "fullName": "Authorized Second Admin",
+  "email": "second_admin@example.com",
+  "password": "AdminPassword123",
+  "role": "Admin"
+}
+
+### 8. Login as User
 # @name loginUser
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
