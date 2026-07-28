@@ -1,0 +1,79 @@
+@hostname = localhost
+@port = 5925
+@baseUrl = https://{{hostname}}:{{port}}
+
+###############################################################################
+# REQUEST FILE: request_cinemahalls.http
+###############################################################################
+
+# ============================================================================
+# LOGIN AS ADMIN (Required for write operations)
+# ============================================================================
+
+### Login as Admin
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@ticketapp.com",
+  "password": "AdminPassword123!"
+}
+
+@authToken = {{loginAdmin.response.body.data.token}}
+
+# ============================================================================
+# CINEMA HALLS ENDPOINTS
+# ============================================================================
+
+### 1. Get all Cinema Halls (Pagination)
+GET {{baseUrl}}/api/cinemahalls?pageNumber=1&pageSize=10
+Accept: application/json
+
+### 2. Get Cinema Hall by ID
+GET {{baseUrl}}/api/cinemahalls/1
+Accept: application/json
+
+### 3. Create a new Cinema Hall (Admin)
+POST {{baseUrl}}/api/cinemahalls
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "Hall 5 - Ultra IMAX",
+  "totalSeats": 150
+}
+
+### 4. Create a new Cinema Hall - Validation Error (Admin)
+POST {{baseUrl}}/api/cinemahalls
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "",
+  "totalSeats": -5
+}
+
+### 5. Update an existing Cinema Hall (Admin)
+PUT {{baseUrl}}/api/cinemahalls/1
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "Hall 1 - Dolby Premium",
+  "totalSeats": 120
+}
+
+### 6. Patch Cinema Hall (Admin)
+PATCH {{baseUrl}}/api/cinemahalls/1
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "Hall 1 - Dolby Atmos XL"
+}
+
+### 7. Delete Cinema Hall (Admin)
+DELETE {{baseUrl}}/api/cinemahalls/2
+Authorization: Bearer {{authToken}}
+Accept: application/json
