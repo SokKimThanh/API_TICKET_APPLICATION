@@ -26,7 +26,11 @@ builder.WebHost.ConfigureKestrel(options =>
 
 // Register AppDbContext for Dependency Injection
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+           .LogTo(message => Console.WriteLine(message), Microsoft.Extensions.Logging.LogLevel.Information)
+           .EnableSensitiveDataLogging();
+});
 
 // ========== CONFIGURE CORS ==========
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
