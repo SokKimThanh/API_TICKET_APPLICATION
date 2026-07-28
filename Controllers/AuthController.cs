@@ -26,16 +26,48 @@ namespace API_TICKET_APPLICATION.Controllers
         [HttpPost("register")]
         [ProducesResponseType(typeof(ResponseModel<UserResponseDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
             try
             {
+                var defaultRole = string.IsNullOrWhiteSpace(request.Role) ? "Customer" : request.Role.Trim();
+
+                // Chuẩn hóa chữ hoa chữ thường cho Role để khớp chính xác với database check constraint ('Customer', 'Admin')
+                if (string.Equals(defaultRole, "Customer", StringComparison.OrdinalIgnoreCase))
+                {
+                    defaultRole = "Customer";
+                }
+                else if (string.Equals(defaultRole, "Admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    defaultRole = "Admin";
+                }
+
+                // Ngăn chặn leo thang đặc quyền (Privilege Escalation):
+                // Chỉ cho phép đăng ký tài khoản có vai trò 'Admin' khi:
+                // 1. Hệ thống chưa có bất kỳ quản trị viên nào hoạt động (Bootstrap Admin).
+                // 2. Hoặc Người đang thực hiện yêu cầu là một Admin hợp lệ đã được xác thực.
+                if (defaultRole == "Admin")
+                {
+                    var anyAdminExists = await _context.Users.AnyAsync(u => u.Role == "Admin" && u.IsDeleted == false);
+                    if (anyAdminExists)
+                    {
+                        var currentUserId = GetUserId();
+                        var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+                        if (currentUserRole != "Admin")
+                        {
+                            return ErrorResponse("Bạn không có quyền đăng ký tài khoản với vai trò Quản trị viên (Admin).", StatusCodes.Status403Forbidden, "FORBIDDEN");
+                        }
+                    }
+                }
+
                 var user = new User
                 {
                     FullName = request.FullName,
                     Email = request.Email,
-                    Role = "User" // Default role
+                    Role = defaultRole
                 };
 
                 var validation = UserValidator.ValidateRegistration(user, request.Password);
@@ -139,6 +171,7 @@ namespace API_TICKET_APPLICATION.Controllers
         public string FullName { get; set; } = null!;
         public string Email { get; set; } = null!;
         public string Password { get; set; } = null!;
+        public string? Role { get; set; }
     }
 
     public class LoginRequest

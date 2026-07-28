@@ -23,6 +23,9 @@ namespace API_TICKET_APPLICATION.Models
             if (password.Length < 6)
                 return (false, "Mật khẩu phải có ít nhất 6 ký tự");
 
+            if (user.Role != "Customer" && user.Role != "Admin")
+                return (false, "Vai trò không hợp lệ. Chỉ chấp nhận 'Customer' hoặc 'Admin'");
+
             return (true, null);
         }
 
