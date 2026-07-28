@@ -127,6 +127,25 @@ else
 }
 
 // =========================================================================
+// 🛡️ SECURITY HEADERS MIDDLEWARE (Defense in Depth)
+// =========================================================================
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
+    context.Response.Headers.Append("Referrer-Policy", "no-referrer");
+
+    // Strict Content-Security-Policy for API endpoints only
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        context.Response.Headers.Append("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; sandbox");
+    }
+
+    await next();
+});
+
+// =========================================================================
 // 🚀 LÀN ĐƯỜNG ƯU TIÊN (SHORT-CIRCUIT) CHO SWAGGER & OPENAPI
 // Đặt ở đầu tiên của chuỗi Custom Middleware để chặn đứng việc quét lặp lại
 // =========================================================================
