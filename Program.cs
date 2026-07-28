@@ -86,25 +86,26 @@ builder.Services.AddOpenApi(options =>
         var type = context.JsonTypeInfo.Type;
         if (type.IsGenericType)
         {
-            var genericTypeName = type.GetGenericTypeDefinition().Name;
-            if (genericTypeName.Contains('`'))
-            {
-                genericTypeName = genericTypeName.Substring(0, genericTypeName.IndexOf('`'));
-            }
-            var genericArgs = string.Join("And", type.GetGenericArguments().Select(t => t.Name));
-            schema.Title = $"{genericTypeName}Of{genericArgs}";
+            schema.Title = OpenApiSchemaHelper.GetCleanTypeName(type);
 
             // Tự động bổ sung mô tả (description) cho các schema generic trong môi trường Development (chỉ cho học tập/kiểm thử)
             if (builder.Environment.IsDevelopment())
             {
+                var genericTypeName = type.GetGenericTypeDefinition().Name;
+                if (genericTypeName.Contains('`'))
+                {
+                    genericTypeName = genericTypeName.Substring(0, genericTypeName.IndexOf('`'));
+                }
                 var genericTypeDefinition = type.GetGenericTypeDefinition();
+                var innerTypes = string.Join(", ", type.GetGenericArguments().Select(OpenApiSchemaHelper.GetFriendlyTypeName));
+
                 if (genericTypeDefinition == typeof(PagedData<>) || genericTypeName == "PagedData")
                 {
-                    schema.Description = "Mô hình phân trang dữ liệu generic (chỉ dùng cho môi trường Development)";
+                    schema.Description = $"Mô hình phân trang dữ liệu phục vụ cho model {innerTypes} (chỉ dùng cho môi trường Development)";
                 }
                 else if (genericTypeDefinition == typeof(ResponseModel<>) || genericTypeName == "ResponseModel")
                 {
-                    schema.Description = "Mô hình phản hồi API chuẩn generic (chỉ dùng cho môi trường Development)";
+                    schema.Description = $"Mô hình phản hồi API chuẩn phục vụ cho model {innerTypes} (chỉ dùng cho môi trường Development)";
                 }
             }
         }
@@ -386,6 +387,40 @@ public class BearerSecuritySchemeTransformer : IOpenApiDocumentTransformer
             document.Security ??= new List<OpenApiSecurityRequirement>();
             document.Security.Add(securityRequirement);
         }
+    }
+}
+
+// ========== OPENAPI SCHEMA HELPER ==========
+public static class OpenApiSchemaHelper
+{
+    public static string GetFriendlyTypeName(Type type)
+    {
+        if (type.IsGenericType)
+        {
+            var genericTypeName = type.GetGenericTypeDefinition().Name;
+            if (genericTypeName.Contains('`'))
+            {
+                genericTypeName = genericTypeName.Substring(0, genericTypeName.IndexOf('`'));
+            }
+            var genericArgs = string.Join(", ", type.GetGenericArguments().Select(GetFriendlyTypeName));
+            return $"{genericTypeName}<{genericArgs}>";
+        }
+        return type.Name;
+    }
+
+    public static string GetCleanTypeName(Type type)
+    {
+        if (type.IsGenericType)
+        {
+            var genericTypeName = type.GetGenericTypeDefinition().Name;
+            if (genericTypeName.Contains('`'))
+            {
+                genericTypeName = genericTypeName.Substring(0, genericTypeName.IndexOf('`'));
+            }
+            var genericArgs = string.Join("And", type.GetGenericArguments().Select(GetCleanTypeName));
+            return $"{genericTypeName}Of{genericArgs}";
+        }
+        return type.Name;
     }
 }
 
