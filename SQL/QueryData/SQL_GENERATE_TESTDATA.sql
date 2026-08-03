@@ -141,7 +141,7 @@ SELECT
     s.Id AS ShowtimeId,
     s.BasePrice * b_num.b AS TotalPrice,
     CASE WHEN (s.Id + b_num.b) % 3 = 0 THEN N'Paid'
-         WHEN (s.Id + b_num.b) % 3 = 1 THEN N'Confirmed'
+         WHEN (s.Id + b_num.b) % 3 = 1 THEN N'Pending'
          ELSE N'Cancelled'
     END AS Status,
     DATEADD(HOUR, -24 + b_num.b, s.StartTime) AS BookingTime,
@@ -179,11 +179,11 @@ GO
 PRINT '============================================================================';
 PRINT 'QUY TRÌNH SINH DỮ LIỆU HOÀN THÀNH. THỐNG KÊ CHI TIẾT CÁC BẢNG:';
 PRINT '============================================================================';
-SELECT 'Users' AS TableName, COUNT(*) AS RowCount FROM Users UNION ALL
-SELECT 'Movies' AS TableName, COUNT(*) AS RowCount FROM Movies UNION ALL
-SELECT 'CinemaHalls' AS TableName, COUNT(*) AS RowCount FROM CinemaHalls UNION ALL
-SELECT 'Seats' AS TableName, COUNT(*) AS RowCount FROM Seats UNION ALL
-SELECT 'Showtimes' AS TableName, COUNT(*) AS RowCount FROM Showtimes UNION ALL
-SELECT 'Bookings' AS TableName, COUNT(*) AS RowCount FROM Bookings UNION ALL
-SELECT 'Tickets' AS TableName, COUNT(*) AS RowCount FROM Tickets;
+SELECT 'Users' AS TableName, COUNT(*) AS [RowCount] FROM Users UNION ALL
+SELECT 'Movies' AS TableName, COUNT(*) AS [RowCount] FROM Movies UNION ALL
+SELECT 'CinemaHalls' AS TableName, COUNT(*) AS [RowCount] FROM CinemaHalls UNION ALL
+SELECT 'Seats' AS TableName, COUNT(*) AS [RowCount] FROM Seats UNION ALL
+SELECT 'Showtimes' AS TableName, COUNT(*) AS [RowCount] FROM Showtimes UNION ALL
+SELECT 'Bookings' AS TableName, COUNT(*) AS [RowCount] FROM Bookings UNION ALL
+SELECT 'Tickets' AS TableName, COUNT(*) AS [RowCount] FROM Tickets;
 GO
