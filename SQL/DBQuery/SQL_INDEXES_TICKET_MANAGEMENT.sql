@@ -51,9 +51,33 @@ WHERE IsDeleted = 0;
 
 -- Báo cáo 2: Vé bán theo ngày (ShowDate/BookingDate)
 -- Tối ưu hóa: Thêm chỉ mục cho ngày thực hiện giao dịch (BookingTime) để báo cáo doanh số theo ngày chạy tức thời.
-CREATE INDEX IX_Bookings_BookingTime_Active ON Bookings(BookingTime) WHERE IsDeleted = 0;
+CREate INDEX IX_Bookings_BookingTime_Active
+ON Bookings(BookingTime)
+--INCLUDE (TotalPrice)
+WHERE IsDeleted = 0 --and Status = 'Paid';
+
+--DROP INDEX IX_Bookings_BookingTime_Active ON dbo.Bookings;
+
 
 -- Báo cáo 3: Suất chiếu theo phòng (RoomId / CinemaHallId)
 -- Tối ưu hóa: Thêm chỉ mục độc lập cho CinemaHallId trên Showtimes để hỗ trợ lọc phòng chiếu cực nhanh
 -- khi không kết hợp điều kiện thời gian.
 CREATE INDEX IX_Showtimes_CinemaHall_Active ON Showtimes(CinemaHallId) WHERE IsDeleted = 0;
+
+SELECT 
+    i.name AS IndexName,
+    i.index_id,
+    i.type_desc AS IndexType,
+    c.name AS ColumnName,
+    ic.is_included_column,
+    i.is_unique,
+    i.is_primary_key,
+    i.is_unique_constraint,
+    i.filter_definition
+FROM sys.indexes i
+JOIN sys.index_columns ic 
+    ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+JOIN sys.columns c 
+    ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+WHERE i.object_id = OBJECT_ID('dbo.Bookings')
+ORDER BY i.name, ic.key_ordinal;
