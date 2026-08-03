@@ -151,7 +151,7 @@ namespace API_TICKET_APPLICATION.Controllers
                     UserId = userId.Value,
                     ShowtimeId = request.ShowtimeId,
                     TotalPrice = showtime.BasePrice * request.SeatIds.Count,
-                    Status = "Confirmed",
+                    Status = "Pending",
                     BookingTime = DateTime.UtcNow,
                     IsDeleted = false
                 };
