@@ -2,7 +2,7 @@
 
 Một hệ thống **Database-First Movie Booking API** chuyên nghiệp được xây dựng trên nền tảng **ASP.NET Core (.NET 10)**, tích hợp cơ chế phân quyền bảo mật (role-based authorization), quy trình đặt vé an toàn qua database transaction, và tài liệu hướng dẫn chuẩn OpenAPI/Swagger tương tác trực quan.
 
-**Phiên bản hiện tại:** `v1.2.0-security-openapi` (Gia cố bảo mật & Tối ưu hóa Swagger Schema) 🛡️⚡
+**Phiên bản hiện tại:** `v1.3.1-performance-benchmarking` (Sinh Dữ Liệu Lớn & Sửa Lỗi Ràng Buộc Trạng Thái Đặt Vé) 🚀📊
 
 ---
 
@@ -191,6 +191,14 @@ Mọi phản hồi từ hệ thống đều được đồng bộ theo cấu tr�
 
 4. **Tạo Database và khởi tạo dữ liệu mẫu:**
    - Tạo Database bằng cách thực thi các file SQL tại thư mục `SQL/DBQuery/` theo hướng dẫn SQLCMD.
+   - **[Tùy chọn] Sinh dữ liệu mẫu siêu lớn (Bulk Benchmarking Data):** Để phục vụ mục đích kiểm tra và đo lường hiệu năng với lượng dữ liệu thực tế lớn (~300,000 dòng dữ liệu phân bổ đều qua các bảng), thực hiện chạy kịch bản gieo dữ liệu:
+     ```bash
+     sqlcmd -S (localdb)\MSSQLLocalDB -d TicketManagementDB -i SQL/QueryData/SQL_GENERATE_TESTDATA.sql
+     ```
+   - **[Tùy chọn] Kiểm thử & Phân tích Hiệu năng Chỉ mục (Index Performance Testing):** Đo lường và đánh giá chi tiết tài nguyên CPU/Đọc đĩa khi truy vấn (thông qua cơ chế `SET STATISTICS IO/TIME ON`), thực thi kịch bản phân tích:
+     ```bash
+     sqlcmd -S (localdb)\MSSQLLocalDB -d TicketManagementDB -i SQL/QueryData/SQL_TEST_INDEX_REPORTS.sql
+     ```
 5. **Kích hoạt chứng chỉ HTTPS nội bộ (Nếu chưa cài đặt):**
    ```bash
    dotnet dev-certs https --trust
@@ -259,7 +267,11 @@ API_TICKET_APPLICATION/
 │   └── auth.http
 ├── Migrations/               # Lịch sử cập nhật Database của EF Core
 ├── SQL/                      # Chứa các kịch bản SQL và cấu trúc DB tối ưu
-│   └── DBQuery/              # Các kịch bản SQL chi tiết
+│   ├── DBQuery/              # Các kịch bản SQL chi tiết tạo Schema, Constraints, Indexes và Seed dữ liệu mẫu
+│   └── QueryData/            # Các kịch bản SQL tạo dữ liệu mẫu quy mô lớn và báo cáo hiệu năng
+│       ├── SQL_GENERATE_TESTDATA.sql                    # Sinh dữ liệu mẫu cực lớn cho mục đích benchmark (~300,000 dòng)
+│       ├── SQL_TEST_INDEX_REPORTS.sql                  # Kiểm thử và đo lường hiệu năng các chỉ mục bằng STATISTICS IO/TIME
+│       └── SQL_PERFORMANCE_AUDIT_SOFT_INDEX_TICKET_MANAGEMENT.sql  # Kiểm tra hiệu năng chỉ mục soft-delete
 ├── Program.cs                # Điểm khởi chạy ứng dụng, cấu hình Kestrel, JWT, và OpenAPI
 ├── appsettings.json          # Tệp cấu hình môi trường
 └── README.md                 # Tài liệu này
@@ -373,6 +385,17 @@ Trong Phase 2, hệ thống sẽ được mở rộng để hỗ trợ mô hình
 ---
 
 ## Lịch sử thay đổi (Changelog)
+
+### [2026-08-04] — v1.3.1-performance-benchmarking (Sinh Dữ Liệu Lớn & Sửa Lỗi Ràng Buộc Trạng Thái Đặt Vé) 🚀📊
+- **Tự động sinh dữ liệu mẫu quy mô lớn (Bulk Data Generator for Benchmarking):**
+  - Bổ sung tệp kịch bản `SQL_GENERATE_TESTDATA.sql` tạo nhanh khoảng 300,000 dòng dữ liệu mẫu phân bổ đều qua các bảng (10 Users, 10 Movies, 5 Cinema Halls, 250 Seats, 40,000 Showtimes, 120,000 Bookings, và ~160,000 Tickets) bằng kỹ thuật `CROSS JOIN` hiệu năng cao phục vụ cho mục đích benchmark hiệu năng.
+  - Tự động re-seed lại toàn bộ các cột Identity của các bảng về giá trị khởi đầu trước khi chạy gieo mẫu dữ liệu giúp kết quả thử nghiệm đồng nhất.
+- **Sửa lỗi vi phạm check constraint về Trạng thái Đặt Vé (Status Constraint Fix):**
+  - Khắc phục lỗi gán trạng thái `"Confirmed"` không hợp lệ cho đơn đặt vé (`Booking`) trong `BookingsController.cs` và kịch bản gieo dữ liệu. Đồng bộ hóa về trạng thái `"Pending"` để khớp hoàn toàn với ràng buộc check constraint `CK_Bookings_Status` trong SQL Server (chỉ chấp nhận `Pending`, `Paid`, `Cancelled`).
+- **Tương thích hoàn toàn cú pháp SQL Server / T-SQL (T-SQL Keyword Compatibility):**
+  - Khắc phục lỗi xung đột cú pháp khi biên dịch trong SQL Server bằng cách thêm dấu ngoặc vuông `[RowCount]` cho cột alias `RowCount` trong câu lệnh SELECT thống kê dữ liệu.
+- **Tối ưu hóa & Đo lường Chỉ mục (Indexes Tuning & Performance Verification):**
+  - Bổ sung chỉ mục `IX_Bookings_BookingTime_Active` và bổ sung truy vấn SQL liệt kê chi tiết các chỉ mục hiện có trên bảng `Bookings` trong `SQL_INDEXES_TICKET_MANAGEMENT.sql` phục vụ phân tích Execution Plan trực quan.
 
 ### [2026-07-29] — v1.3.0-database-modularization-indexes (Tối ưu hóa Chỉ mục Báo cáo & Mô-đun hóa SQL) 🚀⚙️
 - **Mô-đun hóa kịch bản cơ sở dữ liệu:**
