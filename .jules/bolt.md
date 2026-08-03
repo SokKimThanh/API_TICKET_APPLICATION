@@ -8,3 +8,7 @@
 ## 2026-07-07 - Navigation Property Joins vs. Correlated Subqueries
 **Learning:** Using nested/correlated subqueries with `.Contains()` (e.g. `_context.Bookings.Where(...).Select(b => b.Id).Contains(t.BookingId)`) for checking double bookings produces inefficient and complex subqueries in SQL, and misses opportunities for EF Core's built-in relationship joining.
 **Action:** Always prefer joining tables using EF Core navigation properties (e.g. `t.Booking.ShowtimeId`) and append `.AsNoTracking()` to avoid any tracking overhead on validator/read-only checks. This compiles to a clean SQL `INNER JOIN` or `LEFT JOIN` which database query planners can optimize much better.
+
+## 2026-07-08 - Highly Optimized Input Validation using SearchValues<string>
+**Learning:** Manual loop-based string searching with `string.Contains` over a collection of dangerous patterns is extremely CPU-heavy and allocates excessively. Under .NET 9 and 10, utilizing `SearchValues<string>` allows for vectorized, multi-pattern substring matching.
+**Action:** Use `SearchValues.Create(DangerousPatterns, StringComparison.OrdinalIgnoreCase)` combined with `.AsSpan().ContainsAny(Searcher)` to perform lightning-fast, high-performance input scans.
