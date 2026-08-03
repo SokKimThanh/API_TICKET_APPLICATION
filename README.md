@@ -82,15 +82,11 @@ Một hệ thống **Database-First Movie Booking API** chuyên nghiệp đượ
   {
       options.AddPolicy("AllowFrontend", policy =>
       {
-          policy.WithOrigins("http://localhost:3000") // Thay đổi theo origin frontend của bạn
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
+          policy.WithOrigins(options => {
+             // Cấu hình linh hoạt từ appsettings.json
+          });
       });
   });
-
-  // 2. Kích hoạt Middleware (Thêm vào phần Cấu hình Pipeline, sau app.UseRouting() và trước app.UseAuthorization())
-  app.UseCors("AllowFrontend");
   ```
 
 ---
@@ -194,10 +190,7 @@ Mọi phản hồi từ hệ thống đều được đồng bộ theo cấu tr�
      ```
 
 4. **Tạo Database và khởi tạo dữ liệu mẫu:**
-   ```bash
-   dotnet ef database update
-   ```
-
+   - Tạo Database bằng cách thực thi các file SQL tại thư mục `SQL/DBQuery/` theo hướng dẫn SQLCMD.
 5. **Kích hoạt chứng chỉ HTTPS nội bộ (Nếu chưa cài đặt):**
    ```bash
    dotnet dev-certs https --trust
@@ -265,10 +258,89 @@ API_TICKET_APPLICATION/
 │   ├── tickets.http
 │   └── auth.http
 ├── Migrations/               # Lịch sử cập nhật Database của EF Core
+├── SQL/                      # Chứa các kịch bản SQL và cấu trúc DB tối ưu
+│   └── DBQuery/              # Các kịch bản SQL chi tiết
 ├── Program.cs                # Điểm khởi chạy ứng dụng, cấu hình Kestrel, JWT, và OpenAPI
 ├── appsettings.json          # Tệp cấu hình môi trường
 └── README.md                 # Tài liệu này
 ```
+
+---
+
+## Database Optimization
+
+Phần này cung cấp phân tích chi tiết về kiến trúc chỉ mục (**Indexes**) được triển khai tại tệp tin `SQL_INDEXES_TICKET_MANAGEMENT.sql`, đối chiếu với 7 bảng cơ sở dữ liệu hiện có, đánh giá tính sẵn sàng cho các báo cáo phân tích hiện tại và tương lai, đồng thời giải thích lý do thiết kế trong giai đoạn MVP.
+
+### 1. Đối chiếu Chỉ mục với 7 Bảng Cơ sở Dữ liệu
+
+| Tên Bảng | Chỉ mục Hiện tại (Non-Clustered & Filtered) | Mục đích & Độ phủ |
+| :--- | :--- | :--- |
+| **Users** | `IX_Users_Email_Active` (Unique, Filtered)<br>`IX_Users_Role_Active` (Filtered) | Tối ưu hóa xác thực (Login/Register) và phân quyền Role-based nhanh chóng qua Email. |
+| **Movies** | `IX_Movies_Genre_Active` (Filtered)<br>`IX_Movies_ReleaseDate_Active` (Filtered) | Tăng tốc tìm kiếm và lọc danh sách phim theo Thể loại (Genre) và Ngày phát hành (ReleaseDate). |
+| **CinemaHalls** | *Chỉ có Clustered Index (Id)* | Không cần chỉ mục Non-Clustered phụ do bảng có kích thước nhỏ và ít bản ghi. |
+| **Seats** | `IX_Seats_CinemaHall_Active` (Filtered) | Tối ưu hóa các phép JOIN lấy toàn bộ sơ đồ ghế dựa theo phòng chiếu (`CinemaHallId`). |
+| **Showtimes** | `IX_Showtimes_StartTime_Hall_Active`<br>`IX_Showtimes_Movie_Active`<br>`IX_Showtimes_CinemaHall_Active` | Tối ưu hóa kiểm tra trùng suất chiếu, lọc suất chiếu theo phim và lập lịch suất chiếu độc lập theo phòng chiếu. |
+| **Bookings** | `IX_Bookings_User_Active`<br>`IX_Bookings_Status_Active`<br>`IX_Bookings_Showtime_Status_Include`<br>`IX_Bookings_BookingTime_Active` | Quản lý toàn diện lịch sử người dùng, trạng thái giao dịch, thống kê doanh thu theo ngày và bao phủ (Covering Index) truy vấn tính tổng tiền. |
+| **Tickets** | `IX_Tickets_Booking`<br>`IX_Tickets_Seat` | Tối ưu hóa việc JOIN chi tiết vé khi in đơn hàng và kiểm tra trạng thái ghế bận của suất chiếu. |
+
+---
+
+### 2. Đánh giá Mức độ Hoàn thiện đối với các Báo cáo Nghiệp vụ
+
+#### A. Đối với các Báo cáo Nghiệp vụ Hiện có:
+1. **Báo cáo Doanh thu theo Phim:**
+   - *Trạng thái:* **Hoàn hảo**.
+   - *Chi tiết:* Được tối ưu hóa tuyệt đối bởi Composite Covering Index `IX_Bookings_Showtime_Status_Include` trên `Bookings(ShowtimeId, Status) INCLUDE (TotalPrice)`. Toàn bộ dữ liệu doanh thu được tính toán trực tiếp từ cấu trúc Index B-Tree mà không cần thực hiện thao tác tra cứu dữ liệu gốc (Key Lookup).
+   - *Tối ưu hóa ghi:* Để bảo vệ hiệu năng chèn/ghi (DML), index cũ `IX_Bookings_Showtime_Active` đã được gỡ bỏ vì `IX_Bookings_Showtime_Status_Include` (bắt đầu bằng `ShowtimeId`) đã bao phủ hoàn toàn nó.
+2. **Báo cáo Vé theo Ngày:**
+   - *Trạng thái:* **Hoàn hảo**.
+   - *Chi tiết:* Sử dụng `IX_Bookings_BookingTime_Active` để thống kê giao dịch theo ngày mua và `IX_Showtimes_StartTime_Hall_Active` (tiền tố `StartTime`) để lọc vé bán theo thời gian chiếu.
+3. **Báo cáo Suất chiếu theo Phòng:**
+   - *Trạng thái:* **Hoàn hảo**.
+   - *Chi tiết:* Tối ưu hóa bởi chỉ mục độc lập `IX_Showtimes_CinemaHall_Active`, cho phép lọc suất chiếu của một phòng mà không cần kèm theo tham số thời gian.
+4. **Lịch sử Đặt vé theo Người dùng:**
+   - *Trạng thái:* **Hoàn hảo**.
+   - *Chi tiết:* Tối ưu hóa bởi chỉ mục `IX_Bookings_User_Active` giúp lấy danh sách đơn của một người dùng trong thời gian O(log N).
+
+---
+
+### 3. Phân tích & Đánh giá Chỉ mục cho các Báo cáo Tiềm năng trong Tương lai
+
+Khi hệ thống phát triển lớn hơn, các báo cáo phân tích kinh doanh (BI) chuyên sâu hơn sẽ cần được triển khai. Dưới đây là phân tích mức độ đáp ứng của hệ thống index hiện tại và khuyến nghị:
+
+#### A. Báo cáo phân loại khách hàng theo Vai trò (Role)
+* **Luồng truy vấn:** `SELECT Role, COUNT(*) FROM Users GROUP BY Role;`
+* **Mức độ đáp ứng:** **Đã tối ưu**. Chỉ mục `IX_Users_Role_Active` trên `Users(Role) WHERE IsDeleted = 0` sẽ hỗ trợ trực tiếp việc gom nhóm và đếm cực nhanh mà không cần quét toàn bộ bảng Users.
+
+#### B. Báo cáo doanh thu theo Thể loại phim (Genre)
+* **Luồng truy vấn:** `SUM(TotalPrice)` gom nhóm theo `Movies.Genre`.
+* **Mức độ đáp ứng:** **Tốt (Chưa tối ưu tối đa)**. Việc JOIN từ `Movies` (lọc qua `IX_Movies_Genre_Active`) sang `Showtimes` và `Bookings` (lọc qua `IX_Bookings_Showtime_Status_Include`) đã rất tốt.
+* **Khuyến nghị tương lai (Nếu cần tối ưu thêm):** Nếu bảng `Movies` tăng trưởng tới hàng triệu dòng, có thể cân nhắc chuyển `IX_Movies_Genre_Active` thành một Covering Index bổ sung: `CREATE INDEX IX_Movies_Genre_Covering ON Movies(Genre) INCLUDE (Title);`
+
+#### C. Báo cáo tỷ lệ phân bổ Ghế ngồi theo Loại ghế (SeatType)
+* **Luồng truy vấn:** Thống kê số lượng ghế Standard, VIP, Sweetbox để đánh giá cơ cấu rạp.
+* **Mức độ đáp ứng:** **Chưa tối ưu (Bị bỏ sót)**. Hiện bảng `Seats` chưa có index nào hỗ trợ tìm kiếm hay phân nhóm theo cột `SeatType`.
+* **Khuyến nghị:**
+  ```sql
+  -- Khuyến nghị bổ sung trong tương lai khi có nhu cầu báo cáo ghế ngồi chuyên sâu
+  CREATE INDEX IX_Seats_SeatType_Active ON Seats(SeatType) WHERE IsDeleted = 0;
+  ```
+
+#### D. Báo cáo Phim theo Ngày phát hành (ReleaseDate)
+* **Luồng truy vấn:** Thống kê danh sách phim sắp chiếu hoặc phim theo mùa.
+* **Mức độ đáp ứng:** **Đã tối ưu**. Chỉ mục `IX_Movies_ReleaseDate_Active` hỗ trợ tìm kiếm phạm vi ngày cực nhanh.
+
+#### E. Báo cáo Tỷ lệ đơn hàng theo Trạng thái (Booking Status)
+* **Luồng truy vấn:** `SELECT Status, COUNT(*) FROM Bookings GROUP BY Status;` (Đo lường tỷ lệ thanh toán thành công so với đơn ảo/hủy).
+* **Mức độ đáp ứng:** **Đã tối ưu**. Chỉ mục `IX_Bookings_Status_Active` hỗ trợ gom nhóm trạng thái trực tiếp từ cây index.
+
+---
+
+### 4. Giải thích Nguyên nhân Lịch sử bỏ sót trong Giai đoạn MVP
+
+* **Ưu tiên Tính đúng đắn của Nghiệp vụ (OLTP):** Giai đoạn MVP tập trung 100% vào việc hoàn thiện các luồng xử lý luân chuyển dữ liệu: Tạo mới bản ghi, cập nhật trạng thái đơn hàng và chạy Transaction an toàn để khóa ghế. Vì thế, các chỉ mục ban đầu chỉ tập trung vào việc định vị duy nhất một bản ghi (Point Lookups) bằng Khóa chính và các ràng buộc UNIQUE.
+* **Môi trường Dữ liệu Thử nghiệm Nhỏ:** Khi phát triển ban đầu, dữ liệu chỉ có vài chục dòng. Các thuật toán tối ưu hóa của SQL Server sẽ tự động chọn quét toàn bộ bảng (Table Scan) thay vì sử dụng Index vì chi phí đọc Index lúc này lớn hơn chi phí đọc trực tiếp. Do đó, các lỗi thiếu index báo cáo thường không hiển thị hoặc không thể phát hiện cho đến khi có dữ liệu đủ lớn.
+* **Tránh Overhead khi chèn dữ liệu (Write Overhead):** Mỗi chỉ mục Non-Clustered được thêm vào sẽ làm chậm tốc độ của các câu lệnh `INSERT`, `UPDATE`, `DELETE` (DML) vì SQL Server phải đồng thời cập nhật lại cấu trúc cây B-Tree của các Index đó. Do vậy, trong giai đoạn đầu, các kỹ sư thường giữ số lượng Index ở mức tối giản nhất để tối ưu hóa tốc độ ghi đơn đặt vé của khách hàng.
 
 ---
 
@@ -301,6 +373,18 @@ Trong Phase 2, hệ thống sẽ được mở rộng để hỗ trợ mô hình
 ---
 
 ## Lịch sử thay đổi (Changelog)
+
+### [2026-07-29] — v1.3.0-database-modularization-indexes (Tối ưu hóa Chỉ mục Báo cáo & Mô-đun hóa SQL) 🚀⚙️
+- **Mô-đun hóa kịch bản cơ sở dữ liệu:**
+  - Tách thành công file cơ sở dữ liệu monolithic `SQL_DB_TICKET_MANAGEMENT.sql` thành 4 tệp tin chuyên biệt: `SQL_SCHEMA_TICKET_MANAGEMENT.sql` (Cấu trúc bảng), `SQL_CONSTRAINTS_TICKET_MANAGEMENT.sql` (Các khóa ngoại & Check Constraints), `SQL_INDEXES_TICKET_MANAGEMENT.sql` (Chỉ mục giao dịch & phân tích), và `SQL_SEED_DATA_TICKET_MANAGEMENT.sql` (Dữ liệu mẫu).
+  - Cập nhật file `SQL_DB_TICKET_MANAGEMENT.sql` đóng vai trò là Master Script sử dụng SQLCMD mode để phối hợp thực thi tuần tự.
+- **Tối ưu hóa hiệu năng & bổ sung chỉ mục phục vụ báo cáo:**
+  - Bổ sung Composite Covering Index `IX_Bookings_Showtime_Status_Include` trên `Bookings(ShowtimeId, Status) INCLUDE (TotalPrice)` nhằm tối ưu hóa báo cáo doanh thu theo phim, loại bỏ Key Lookup.
+  - Loại bỏ index trùng lặp, dư thừa `IX_Bookings_Showtime_Active` trên `Bookings(ShowtimeId)` giúp tăng tốc độ chèn dữ liệu và tối ưu hóa hiệu năng API (DML).
+  - Bổ sung chỉ mục `IX_Bookings_BookingTime_Active` hỗ trợ lọc và làm báo cáo đơn hàng/vé bán theo ngày giao dịch tức thời.
+  - Bổ sung chỉ mục `IX_Showtimes_CinemaHall_Active` tăng tốc truy xuất và báo cáo suất chiếu độc lập theo phòng chiếu.
+- **Đồng bộ hóa kiểm thử & Sửa lỗi:**
+  - Toàn bộ các file mô hình C# đã được kiểm toán và dự án build thành công 100% không cảnh báo.
 
 ### [2026-07-28] — v1.2.0-security-openapi (Security Hardening & Swagger Schema Optimization) 🛡️⚡
 - **Gia cố bảo mật Endpoint Register (Chống nâng quyền trái phép):**
