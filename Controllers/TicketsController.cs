@@ -26,21 +26,24 @@ namespace API_TICKET_APPLICATION.Controllers
                 var userId = GetUserId();
                 var isAdmin = User.IsInRole("Admin");
 
-                var query = _context.Tickets.AsNoTracking()
-                    .Include(t => t.Booking)
-                    .Include(t => t.Seat)
+                // OPTIMIZATION: Separate base filtering query from table joins (Includes).
+                // This prevents the SQL engine from running unnecessary JOIN operations on Tickets, Bookings, and Seats tables during CountAsync().
+                var baseQuery = _context.Tickets.AsNoTracking()
                     .Where(t => t.IsDeleted == false);
 
                 if (bookingId.HasValue)
-                    query = query.Where(t => t.BookingId == bookingId.Value);
+                    baseQuery = baseQuery.Where(t => t.BookingId == bookingId.Value);
 
                 if (!isAdmin)
                 {
-                    query = query.Where(t => t.Booking.UserId == userId);
+                    baseQuery = baseQuery.Where(t => t.Booking.UserId == userId);
                 }
 
-                var totalCount = await query.CountAsync();
-                var tickets = await query
+                var totalCount = await baseQuery.CountAsync();
+
+                var tickets = await baseQuery
+                    .Include(t => t.Booking)
+                    .Include(t => t.Seat)
                     .OrderByDescending(t => t.CreatedAt)
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)

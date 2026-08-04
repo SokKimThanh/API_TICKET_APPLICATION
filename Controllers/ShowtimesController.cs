@@ -23,25 +23,31 @@ namespace API_TICKET_APPLICATION.Controllers
         {
             try
             {
-                var query = _context.Showtimes.AsNoTracking()
-                    .Include(s => s.Movie)
-                    .Include(s => s.CinemaHall)
+                // OPTIMIZATION: Separate the base filtering query from table joins (Includes)
+                // This prevents the SQL database engine from translating and executing expensive table joins for the simple COUNT operation.
+                var baseQuery = _context.Showtimes.AsNoTracking()
                     .Where(s => s.IsDeleted == false);
 
                 if (movieId.HasValue)
-                    query = query.Where(s => s.MovieId == movieId.Value);
+                    baseQuery = baseQuery.Where(s => s.MovieId == movieId.Value);
 
                 if (cinemaHallId.HasValue)
-                    query = query.Where(s => s.CinemaHallId == cinemaHallId.Value);
+                    baseQuery = baseQuery.Where(s => s.CinemaHallId == cinemaHallId.Value);
 
                 if (date.HasValue)
                 {
                     var startDate = date.Value.Date;
                     var endDate = startDate.AddDays(1);
-                    query = query.Where(s => s.StartTime >= startDate && s.StartTime < endDate);
+                    baseQuery = baseQuery.Where(s => s.StartTime >= startDate && s.StartTime < endDate);
                 }
 
-                var showtimes = await query
+                // Call CountAsync() on the base query without includes/joins
+                var totalCount = await baseQuery.CountAsync();
+
+                // Build the projection query on top of baseQuery, adding the required Includes for the paginated result
+                var showtimes = await baseQuery
+                    .Include(s => s.Movie)
+                    .Include(s => s.CinemaHall)
                     .OrderBy(s => s.StartTime)
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
@@ -51,7 +57,7 @@ namespace API_TICKET_APPLICATION.Controllers
                 {
                     PageNumber = pageNumber,
                     PageSize = pageSize,
-                    TotalCount = await query.CountAsync(),
+                    TotalCount = totalCount,
                     Data = showtimes
                 }, "Lấy danh sách lịch chiếu thành công");
             }

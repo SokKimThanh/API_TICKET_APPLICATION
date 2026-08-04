@@ -12,3 +12,7 @@
 ## 2026-07-08 - Highly Optimized Input Validation using SearchValues<string>
 **Learning:** Manual loop-based string searching with `string.Contains` over a collection of dangerous patterns is extremely CPU-heavy and allocates excessively. Under .NET 9 and 10, utilizing `SearchValues<string>` allows for vectorized, multi-pattern substring matching.
 **Action:** Use `SearchValues.Create(DangerousPatterns, StringComparison.OrdinalIgnoreCase)` combined with `.AsSpan().ContainsAny(Searcher)` to perform lightning-fast, high-performance input scans.
+
+## 2026-08-04 - EF Core Pagination Count Query Optimization
+**Learning:** Calling `.CountAsync()` on an Entity Framework Core query that already has `.Include()` and `.ThenInclude()` navigation properties defined causes EF Core to translate and execute complex table joins (and collection joins) even though only a count is needed. This creates significant overhead on SQL Server, especially with large datasets or one-to-many collections.
+**Action:** Separate the base filtering query (where clauses) from the projection/include query. Call `.CountAsync()` on the base query, then chain `.Include()` and execute `.ToListAsync()` on the page-projection query to keep the COUNT SQL minimal, fast, and lightweight.
