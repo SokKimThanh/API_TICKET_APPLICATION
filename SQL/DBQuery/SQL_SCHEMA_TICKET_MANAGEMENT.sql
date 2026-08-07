@@ -98,6 +98,7 @@ CREATE TABLE Bookings (
     TotalPrice DECIMAL(18,2) NOT NULL,
     Status NVARCHAR(20) NOT NULL,
     BookingTime DATETIME DEFAULT GETDATE(),
+    BookingDate AS CAST(BookingTime AS DATE) PERSISTED,
 
     -- Audit & Soft Delete Columns
     IsDeleted BIT DEFAULT 0 NOT NULL,
@@ -112,6 +113,7 @@ CREATE TABLE Tickets (
     Id INT IDENTITY(1,1) PRIMARY KEY,
     BookingId INT NOT NULL,
     SeatId INT NOT NULL,
+    ShowtimeId INT NOT NULL,
 
     -- Audit & Soft Delete Columns
     IsDeleted BIT DEFAULT 0 NOT NULL,

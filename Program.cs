@@ -245,10 +245,18 @@ app.Use(async (context, next) =>
 // Delay Request (Đã được dọn dẹp sạch sẽ logic check Path!)
 app.Use(async (context, next) =>
 {
-    // Giả lập độ trễ 0.2 giây cho các request nghiệp vụ thông thường (Movies, Showtimes, v.v.)
-    await Task.Delay(200);
+    bool shouldDelay = app.Environment.IsDevelopment() ||
+                      (context.Request.Headers.TryGetValue("X-Debug-Delay", out var headerVal) &&
+                       string.Equals(headerVal, "true", StringComparison.OrdinalIgnoreCase));
 
-    Console.WriteLine($"[DELAY] Request {context.Request.Path} bị trì hoãn 0.2 giây");
+    if (shouldDelay)
+    {
+        // Giả lập độ trễ 0.2 giây cho các request nghiệp vụ thông thường (Movies, Showtimes, v.v.)
+        await Task.Delay(200);
+
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("[DELAY] Request {Path} bị trì hoãn 0.2 giây", context.Request.Path);
+    }
 
     await next.Invoke();
 });
@@ -256,16 +264,17 @@ app.Use(async (context, next) =>
 // 2. Security log events - Được bảo bọc an toàn trước sự kiện hủy kết nối đột ngột
 app.Use(async (context, next) =>
 {
-    Console.WriteLine($"[SECURITY LOG] Incoming request: {context.Request.Method} {context.Request.Path}");
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("[SECURITY LOG] Incoming request: {Method} {Path}", context.Request.Method, context.Request.Path);
 
     try
     {
         await next.Invoke();
-        Console.WriteLine($"[SECURITY LOG] Response status: {context.Response.StatusCode}");
+        logger.LogInformation("[SECURITY LOG] Response status: {StatusCode}", context.Response.StatusCode);
     }
     catch (OperationCanceledException)
     {
-        Console.WriteLine($"[SECURITY LOG] Request {context.Request.Path} was aborted/canceled by the client.");
+        logger.LogWarning("[SECURITY LOG] Request {Path} was aborted/canceled by the client.", context.Request.Path);
         throw; // Tái ném để framework xử lý hủy kết nối tự nhiên
     }
 });
@@ -274,16 +283,17 @@ app.Use(async (context, next) =>
 app.Use(async (context, next) =>
 {
     var sw = System.Diagnostics.Stopwatch.StartNew();
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
     try
     {
         await next.Invoke();
         sw.Stop();
-        Console.WriteLine($"Request {context.Request.Path} took {sw.ElapsedMilliseconds} ms");
+        logger.LogInformation("Request {Path} took {ElapsedMilliseconds} ms", context.Request.Path, sw.ElapsedMilliseconds);
     }
     catch (OperationCanceledException)
     {
         sw.Stop();
-        Console.WriteLine($"Request {context.Request.Path} was CANCELED after {sw.ElapsedMilliseconds} ms");
+        logger.LogWarning("Request {Path} was CANCELED after {ElapsedMilliseconds} ms", context.Request.Path, sw.ElapsedMilliseconds);
         throw;
     }
 });

@@ -46,7 +46,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
@@ -76,7 +76,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
@@ -112,18 +112,18 @@ namespace API_TICKET_APPLICATION.Controllers
                 _context.CinemaHalls.Add(hall);
                 await _context.SaveChangesAsync();
 
-                Console.WriteLine($"[CRUD] POST /api/cinemahalls - Created: {hall.Name} (ID: {hall.Id})");
+                Logger.LogInformation("[CRUD] POST /api/cinemahalls - Created: {Name} (ID: {Id})", hall.Name, hall.Id);
 
                 return CreatedResponse(hall, $"Tạo phòng chiếu '{hall.Name}' thành công", $"/api/cinemahalls/{hall.Id}");
             }
             catch (DbUpdateException dbEx)
             {
-                Console.WriteLine($"[DATABASE ERROR] Create CinemaHall: {dbEx.Message}");
+                Logger.LogError(dbEx, "[DATABASE ERROR] Create CinemaHall: {Message}", dbEx.Message);
                 return ErrorResponse("Lỗi khi lưu dữ liệu vào database. Vui lòng kiểm tra dữ liệu đầu vào.", StatusCodes.Status500InternalServerError);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SYSTEM ERROR] Create CinemaHall: {ex}");
+                Logger.LogError(ex, "[SYSTEM ERROR] Create CinemaHall: {Message}", ex.Message);
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
@@ -158,7 +158,7 @@ namespace API_TICKET_APPLICATION.Controllers
 
                 if (!validation.IsValid)
                 {
-                    Console.WriteLine($"[VALIDATION ERROR] Update CinemaHall {id}: {validation.ErrorMessage}");
+                    Logger.LogWarning("[VALIDATION ERROR] Update CinemaHall {Id}: {ErrorMessage}", id, validation.ErrorMessage);
                     return BadRequestError(validation.ErrorMessage ?? "Dữ liệu phòng chiếu không hợp lệ");
                 }
 
@@ -175,18 +175,18 @@ namespace API_TICKET_APPLICATION.Controllers
 
                 await _context.SaveChangesAsync();
 
-                Console.WriteLine($"[CRUD] PUT /api/cinemahalls/{id} - Updated: {existingHall.Name}");
+                Logger.LogInformation("[CRUD] PUT /api/cinemahalls/{Id} - Updated: {Name}", id, existingHall.Name);
 
                 return OkResponse(existingHall, $"Cập nhật phòng chiếu '{existingHall.Name}' thành công");
             }
             catch (DbUpdateException dbEx)
             {
-                Console.WriteLine($"[DATABASE ERROR] Update CinemaHall {id}: {dbEx.Message}");
+                Logger.LogError(dbEx, "[DATABASE ERROR] Update CinemaHall {Id}: {Message}", id, dbEx.Message);
                 return ErrorResponse("Lỗi khi cập nhật dữ liệu. Vui lòng thử lại.", StatusCodes.Status500InternalServerError);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SYSTEM ERROR] Update CinemaHall {id}: {ex}");
+                Logger.LogError(ex, "[SYSTEM ERROR] Update CinemaHall {Id}: {Message}", id, ex.Message);
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
@@ -220,7 +220,7 @@ namespace API_TICKET_APPLICATION.Controllers
                 var hall = await _context.CinemaHalls.FirstOrDefaultAsync(ch => ch.Id == id);
                 if (hall == null)
                 {
-                    Console.WriteLine($"[CRUD] PATCH /api/cinemahalls/{id} - Not found (404)");
+                    Logger.LogInformation("[CRUD] PATCH /api/cinemahalls/{Id} - Not found (404)", id);
                     return NotFoundError($"Không tìm thấy phòng chiếu với ID: {id}");
                 }
 
@@ -250,13 +250,13 @@ namespace API_TICKET_APPLICATION.Controllers
                 // OPTIMIZATION: Removed redundant _context.CinemaHalls.Update(hall).
                 await _context.SaveChangesAsync();
 
-                Console.WriteLine($"[CRUD] PATCH /api/cinemahalls/{id} - Partially updated: {hall.Name}");
+                Logger.LogInformation("[CRUD] PATCH /api/cinemahalls/{Id} - Partially updated: {Name}", id, hall.Name);
 
                 return OkResponse(hall, $"Cập nhật một phần phòng chiếu '{hall.Name}' thành công");
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
@@ -297,7 +297,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }

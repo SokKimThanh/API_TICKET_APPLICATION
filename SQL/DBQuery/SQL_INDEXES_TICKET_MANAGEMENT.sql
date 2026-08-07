@@ -34,6 +34,9 @@ CREATE INDEX IX_Bookings_Status_Active ON Bookings(Status) WHERE IsDeleted = 0;
 CREATE INDEX IX_Tickets_Booking ON Tickets(BookingId);
 CREATE INDEX IX_Tickets_Seat ON Tickets(SeatId);
 
+-- Chống đặt trùng ghế cùng lịch chiếu (Double Booking Prevention)
+CREATE UNIQUE INDEX UX_Tickets_Showtime_Seat ON Tickets(ShowtimeId, SeatId) WHERE IsDeleted = 0;
+
 
 -- ----------------------------------------------------------------------------
 -- 2. TỐI ƯU HÓA TRUY VẤN BÁO CÁO PHÂN TÍCH (OLAP / REPORTING INDEXES)
@@ -56,7 +59,10 @@ ON Bookings(BookingTime)
 --INCLUDE (TotalPrice)
 WHERE IsDeleted = 0 --and Status = 'Paid';
 
---DROP INDEX IX_Bookings_BookingTime_Active ON dbo.Bookings;
+-- Tối ưu hóa: Thêm chỉ mục cho cột tính toán BookingDate để hỗ trợ lọc/nhóm theo ngày không cần CAST() runtime.
+CREATE INDEX IX_Bookings_BookingDate_Active
+ON Bookings(BookingDate)
+WHERE IsDeleted = 0;
 
 
 -- Báo cáo 3: Suất chiếu theo phòng (RoomId / CinemaHallId)

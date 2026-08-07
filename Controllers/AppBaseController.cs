@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using API_TICKET_APPLICATION.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace API_TICKET_APPLICATION.Controllers
 {
@@ -10,6 +12,9 @@ namespace API_TICKET_APPLICATION.Controllers
     {
         // KẾT NỐI DATABASE DÙNG CHUNG CHO MỌI CONTROLLER CON
         protected readonly AppDbContext _context;
+
+        // LOGGER DÙNG CHUNG CHO CÁC CONTROLLER CON ĐƯỢC PHÂN GIẢI DỰA TRÊN NGỮ CẢNH REQUEST
+        protected ILogger Logger => HttpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger(GetType());
 
         protected AppBaseController(AppDbContext context)
         {

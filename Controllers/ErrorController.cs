@@ -23,7 +23,7 @@ namespace API_TICKET_APPLICATION.Controllers
             {
                 var exception = context.Error;
                 // Ghi log chi tiết lỗi phía server để debug
-                Console.WriteLine($"[GLOBAL EXCEPTION] {DateTime.UtcNow}: {exception}");
+                Logger.LogError(exception, "[GLOBAL EXCEPTION] {Timestamp}: {Message}", DateTime.UtcNow, exception.Message);
             }
 
             // Trả về định dạng JSON lỗi chuẩn hóa bảo mật, tránh rò rỉ Stack Trace / Thông tin nội bộ (Information Leakage)

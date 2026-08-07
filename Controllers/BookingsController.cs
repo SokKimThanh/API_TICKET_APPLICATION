@@ -58,7 +58,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống khi lấy danh sách đặt vé", StatusCodes.Status500InternalServerError);
             }
         }
@@ -95,7 +95,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống", StatusCodes.Status500InternalServerError);
             }
         }
@@ -110,7 +110,7 @@ namespace API_TICKET_APPLICATION.Controllers
         [ProducesResponseType(typeof(ResponseModel<object>), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Create([FromBody] BookingCreateRequest request)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
             try
             {
                 var userId = GetUserId();
@@ -148,7 +148,7 @@ namespace API_TICKET_APPLICATION.Controllers
                 if (overlappingSeats.Any())
                     return BadRequestError($"Ghế ID {string.Join(", ", overlappingSeats)} đã được đặt cho suất chiếu này");
 
-                // Tạo Booking
+                // Tạo Booking và Tickets liên kết trong bộ nhớ (Dùng Navigation Properties)
                 var booking = new Booking
                 {
                     UserId = userId.Value,
@@ -156,29 +156,21 @@ namespace API_TICKET_APPLICATION.Controllers
                     TotalPrice = showtime.BasePrice * request.SeatIds.Count,
                     Status = "Pending",
                     BookingTime = DateTime.UtcNow,
-                    IsDeleted = false
+                    IsDeleted = false,
+                    Tickets = request.SeatIds.Select(seatId => new Ticket
+                    {
+                        ShowtimeId = request.ShowtimeId,
+                        SeatId = seatId,
+                        CreatedAt = DateTime.UtcNow,
+                        IsDeleted = false
+                    }).ToList()
                 };
 
                 var validation = BookingValidator.Validate(booking);
                 if (!validation.IsValid) return BadRequestError(validation.ErrorMessage!);
 
                 _context.Bookings.Add(booking);
-                await _context.SaveChangesAsync();
-
-                // Tạo Tickets
-                foreach (var seatId in request.SeatIds)
-                {
-                    var ticket = new Ticket
-                    {
-                        BookingId = booking.Id,
-                        SeatId = seatId,
-                        CreatedAt = DateTime.UtcNow,
-                        IsDeleted = false
-                    };
-                    _context.Tickets.Add(ticket);
-                }
-
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(); // Lưu nguyên cây cấu trúc nguyên tử trong 1 round-trip duy nhất
                 await transaction.CommitAsync();
 
                 return CreatedResponse(booking, "Đặt vé thành công", $"/api/bookings/{booking.Id}");
@@ -186,7 +178,7 @@ namespace API_TICKET_APPLICATION.Controllers
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống khi đặt vé", StatusCodes.Status500InternalServerError);
             }
         }
@@ -219,7 +211,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống", StatusCodes.Status500InternalServerError);
             }
         }
@@ -261,7 +253,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống", StatusCodes.Status500InternalServerError);
             }
         }
