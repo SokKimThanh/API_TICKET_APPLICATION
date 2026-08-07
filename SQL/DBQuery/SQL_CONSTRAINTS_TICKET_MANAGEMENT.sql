@@ -33,6 +33,10 @@ ADD CONSTRAINT FK_Tickets_Bookings FOREIGN KEY (BookingId) REFERENCES Bookings(I
 ALTER TABLE Tickets
 ADD CONSTRAINT FK_Tickets_Seats FOREIGN KEY (SeatId) REFERENCES Seats(Id);
 
+-- Tickets tham chiếu Showtimes
+ALTER TABLE Tickets
+ADD CONSTRAINT FK_Tickets_Showtimes FOREIGN KEY (ShowtimeId) REFERENCES Showtimes(Id);
+
 -- Ràng buộc chống trùng ghế trong cùng một đơn đặt vé
 ALTER TABLE Tickets
 ADD CONSTRAINT UQ_Tickets UNIQUE (BookingId, SeatId);

@@ -74,8 +74,8 @@ BEGIN
         END
 
         -- Nếu hợp lệ thì thêm vé mới
-        INSERT INTO Tickets (BookingId, SeatId)
-        VALUES (@BookingId, @SeatId);
+        INSERT INTO Tickets (BookingId, SeatId, ShowtimeId)
+        VALUES (@BookingId, @SeatId, @ShowtimeId);
 
         PRINT N'Đặt ghế thành công!';
     END TRY
@@ -110,25 +110,41 @@ BEGIN
         IF @FromDate IS NULL SET @FromDate = '1900-01-01';
         IF @ToDate IS NULL SET @ToDate = '2100-01-01';
 
+        WITH PaidBookings AS (
+            SELECT Id, ShowtimeId, TotalPrice, BookingTime
+            FROM Bookings
+            WHERE Status = 'Paid' AND IsDeleted = 0
+              AND BookingTime >= @FromDate AND BookingTime < @ToDate
+        ),
+        RevenueByShowtime AS (
+            SELECT ShowtimeId, SUM(TotalPrice) AS TotalRevenue
+            FROM PaidBookings
+            GROUP BY ShowtimeId
+        ),
+        TicketsByShowtime AS (
+            SELECT b.ShowtimeId, COUNT(t.Id) AS TicketsSold
+            FROM Tickets t
+            JOIN Bookings b ON t.BookingId = b.Id
+            WHERE t.IsDeleted = 0 AND b.IsDeleted = 0 AND b.Status = 'Paid'
+            GROUP BY b.ShowtimeId
+        )
         SELECT 
             m.Title AS MovieTitle,
-            ISNULL(SUM(CASE WHEN b.Status = 'Paid' THEN b.TotalPrice END),0) AS TotalRevenue,
+            ISNULL(r.TotalRevenue, 0) AS TotalRevenue,
             st.Id AS ShowtimeId,
             st.StartTime,
-            COUNT(CASE WHEN b.Status = 'Paid' THEN t.Id END) AS TicketsSold,
+            ISNULL(tc.TicketsSold, 0) AS TicketsSold,
             ch.TotalSeats,
             CASE 
-                WHEN ch.TotalSeats > 0 
-                THEN CAST(COUNT(CASE WHEN b.Status = 'Paid' THEN t.Id END) * 100.0 / ch.TotalSeats AS DECIMAL(5,2)) 
+                WHEN ch.TotalSeats > 0 THEN CAST(ISNULL(tc.TicketsSold, 0) * 100.0 / ch.TotalSeats AS DECIMAL(5, 2))
                 ELSE 0 
             END AS CapacityPercent
         FROM Showtimes st
         JOIN Movies m ON st.MovieId = m.Id
         JOIN CinemaHalls ch ON st.CinemaHallId = ch.Id
-        LEFT JOIN Bookings b ON b.ShowtimeId = st.Id
-        LEFT JOIN Tickets t ON t.BookingId = b.Id
-        WHERE st.StartTime BETWEEN @FromDate AND @ToDate
-        GROUP BY m.Title, st.Id, st.StartTime, ch.TotalSeats
+        LEFT JOIN RevenueByShowtime r ON r.ShowtimeId = st.Id
+        LEFT JOIN TicketsByShowtime tc ON tc.ShowtimeId = st.Id
+        WHERE st.StartTime >= @FromDate AND st.StartTime < @ToDate
         ORDER BY m.Title, st.StartTime;
     END TRY
     BEGIN CATCH

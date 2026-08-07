@@ -16,3 +16,13 @@
 ## 2026-08-04 - EF Core Pagination Count Query Optimization
 **Learning:** Calling `.CountAsync()` on an Entity Framework Core query that already has `.Include()` and `.ThenInclude()` navigation properties defined causes EF Core to translate and execute complex table joins (and collection joins) even though only a count is needed. This creates significant overhead on SQL Server, especially with large datasets or one-to-many collections.
 **Action:** Separate the base filtering query (where clauses) from the projection/include query. Call `.CountAsync()` on the base query, then chain `.Include()` and execute `.ToListAsync()` on the page-projection query to keep the COUNT SQL minimal, fast, and lightweight.
+
+## 2026-08-07 - Master Performance Audit, Concurrency, and Logging Optimizations
+**Learning:** For high-volume multi-client APIs, utilizing separate database `INSERT` commands for child entities within a loop creates excessive round-trip database latencies and overhead. Leveraging EF Core's built-in change tracking and relational mappings allows for in-memory graph building via navigation properties, enabling a single atomic database `INSERT` statement and single `SaveChangesAsync()` call.
+**Action:** Construct the parent entity and child collection together in memory, then add the parent entity to `DbSet` and save once.
+
+**Learning:** Database unique indexes are highly effective safeguards against double-booking concurrency race conditions when paired with an `IsolationLevel.Serializable` transaction. Specifically, adding the target resource's direct dimension (like `ShowtimeId` on `Tickets`) allows for a clean, deterministic `UX_Tickets_Showtime_Seat` filtered unique index to block overlapping bookings.
+**Action:** Add direct dimension FK columns and unique filtered indexes to prevent transactional race conditions at the database level.
+
+**Learning:** Injecting `ILogger` into many pre-existing controllers often causes constructor signature bloat and breaks inheritance trees, requiring heavy boilerplate refactoring. Dynamic resolution from request services via a shared property in a base controller provides a clean, elegant, and maintainable logging model.
+**Action:** In ASP.NET Core controllers, resolve logger on-demand via `HttpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger(GetType())` to bypass constructor injection.

@@ -31,6 +31,8 @@ public partial class Showtime
 
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
 
+    public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+
     public virtual CinemaHall CinemaHall { get; set; } = null!;
 
     public virtual User? CreatedByNavigation { get; set; }

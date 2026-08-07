@@ -43,7 +43,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống khi lấy danh sách ghế", StatusCodes.Status500InternalServerError);
             }
         }
@@ -66,7 +66,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống", StatusCodes.Status500InternalServerError);
             }
         }
@@ -101,7 +101,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống khi tạo ghế", StatusCodes.Status500InternalServerError);
             }
         }
@@ -138,7 +138,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống khi cập nhật ghế", StatusCodes.Status500InternalServerError);
             }
         }
@@ -189,7 +189,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống", StatusCodes.Status500InternalServerError);
             }
         }
@@ -220,7 +220,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống khi xóa ghế", StatusCodes.Status500InternalServerError);
             }
         }

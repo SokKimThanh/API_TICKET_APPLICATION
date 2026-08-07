@@ -48,7 +48,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
@@ -78,7 +78,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
@@ -113,18 +113,18 @@ namespace API_TICKET_APPLICATION.Controllers
                 _context.Movies.Add(movie);
                 await _context.SaveChangesAsync();
 
-                Console.WriteLine($"[CRUD] POST /api/movies - Created: {movie.Title} (ID: {movie.Id})");
+                Logger.LogInformation("[CRUD] POST /api/movies - Created: {Title} (ID: {Id})", movie.Title, movie.Id);
 
                 return CreatedResponse(movie, $"Tạo phim '{movie.Title}' thành công", $"/api/movies/{movie.Id}");
             }
             catch (DbUpdateException dbEx)
             {
-                Console.WriteLine($"[DATABASE ERROR] Create Movie: {dbEx.Message}");
+                Logger.LogError(dbEx, "[DATABASE ERROR] Create Movie: {Message}", dbEx.Message);
                 return ErrorResponse("Lỗi khi lưu dữ liệu vào database. Vui lòng kiểm tra dữ liệu đầu vào.", StatusCodes.Status500InternalServerError);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SYSTEM ERROR] Create Movie: {ex}");
+                Logger.LogError(ex, "[SYSTEM ERROR] Create Movie: {Message}", ex.Message);
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
@@ -159,7 +159,7 @@ namespace API_TICKET_APPLICATION.Controllers
 
                 if (!validation.IsValid)
                 {
-                    Console.WriteLine($"[VALIDATION ERROR] Update Movie {id}: {validation.ErrorMessage}");
+                    Logger.LogWarning("[VALIDATION ERROR] Update Movie {Id}: {ErrorMessage}", id, validation.ErrorMessage);
                     return BadRequestError(validation.ErrorMessage ?? "Dữ liệu phim không hợp lệ");
                 }
 
@@ -179,18 +179,18 @@ namespace API_TICKET_APPLICATION.Controllers
 
                 await _context.SaveChangesAsync();
 
-                Console.WriteLine($"[CRUD] PUT /api/movies/{id} - Updated: {existingMovie.Title}");
+                Logger.LogInformation("[CRUD] PUT /api/movies/{Id} - Updated: {Title}", id, existingMovie.Title);
 
                 return OkResponse(existingMovie, $"Cập nhật phim '{existingMovie.Title}' thành công");
             }
             catch (DbUpdateException dbEx)
             {
-                Console.WriteLine($"[DATABASE ERROR] Update Movie {id}: {dbEx.Message}");
+                Logger.LogError(dbEx, "[DATABASE ERROR] Update Movie {Id}: {Message}", id, dbEx.Message);
                 return ErrorResponse("Lỗi khi cập nhật dữ liệu. Vui lòng thử lại.", StatusCodes.Status500InternalServerError);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SYSTEM ERROR] Update Movie {id}: {ex}");
+                Logger.LogError(ex, "[SYSTEM ERROR] Update Movie {Id}: {Message}", id, ex.Message);
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
@@ -234,7 +234,7 @@ namespace API_TICKET_APPLICATION.Controllers
                 var movie = await _context.Movies.FirstOrDefaultAsync(m => m.Id == id);
                 if (movie == null)
                 {
-                    Console.WriteLine($"[CRUD] PATCH /api/movies/{id} - Not found (404)");
+                    Logger.LogInformation("[CRUD] PATCH /api/movies/{Id} - Not found (404)", id);
                     return NotFoundError($"Không tìm thấy phim với ID: {id}");
                 }
 
@@ -275,13 +275,13 @@ namespace API_TICKET_APPLICATION.Controllers
                 // EF Core change tracker automatically detects changed properties and only updates those columns in SQL.
                 await _context.SaveChangesAsync();
 
-                Console.WriteLine($"[CRUD] PATCH /api/movies/{id} - Partially updated: {movie.Title}");
+                Logger.LogInformation("[CRUD] PATCH /api/movies/{Id} - Partially updated: {Title}", id, movie.Title);
 
                 return OkResponse(movie, $"Cập nhật một phần phim '{movie.Title}' thành công");
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }
@@ -321,7 +321,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Đã có lỗi hệ thống xảy ra. Vui lòng liên hệ quản trị viên.", StatusCodes.Status500InternalServerError);
             }
         }

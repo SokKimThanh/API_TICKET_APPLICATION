@@ -11,6 +11,8 @@ public partial class Ticket
 
     public int SeatId { get; set; }
 
+    public int ShowtimeId { get; set; }
+
     public DateTime? CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
@@ -28,6 +30,8 @@ public partial class Ticket
     public virtual User? CreatedByNavigation { get; set; }
 
     public virtual Seat Seat { get; set; } = null!;
+
+    public virtual Showtime Showtime { get; set; } = null!;
 
     public virtual User? UpdatedByNavigation { get; set; }
 }

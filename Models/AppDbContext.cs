@@ -38,6 +38,8 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.BookingTime, "IX_Bookings_BookingTime").HasFilter("([IsDeleted]=(0))");
 
+            entity.HasIndex(e => e.BookingDate, "IX_Bookings_BookingDate_Active").HasFilter("([IsDeleted]=(0))");
+
             entity.HasIndex(e => e.ShowtimeId, "IX_Bookings_ShowtimeId").HasFilter("([IsDeleted]=(0))");
 
             entity.HasIndex(e => e.Status, "IX_Bookings_Status").HasFilter("([IsDeleted]=(0))");
@@ -47,6 +49,11 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.BookingTime)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnType("datetime");
+
+            entity.Property(e => e.BookingDate)
+                .HasComputedColumnSql("CAST(BookingTime AS DATE)", stored: true)
+                .HasColumnType("date");
+
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.IsDeleted).HasDefaultValue(false);
             entity.Property(e => e.Status)
@@ -215,6 +222,8 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => new { e.BookingId, e.SeatId }, "UQ_Tickets").IsUnique();
 
+            entity.HasIndex(e => new { e.ShowtimeId, e.SeatId }, "UX_Tickets_Showtime_Seat").IsUnique().HasFilter("([IsDeleted]=(0))");
+
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnType("datetime");
@@ -235,6 +244,11 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.SeatId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Tickets_Seats");
+
+            entity.HasOne(d => d.Showtime).WithMany(p => p.Tickets)
+                .HasForeignKey(d => d.ShowtimeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Tickets_Showtimes");
 
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.TicketUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)

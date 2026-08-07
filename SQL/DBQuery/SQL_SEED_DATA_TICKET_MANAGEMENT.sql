@@ -61,8 +61,8 @@ VALUES
 (2, 2, 90000, N'Paid', GETDATE());
 
 -- Chèn vé chi tiết tương ứng với đơn đặt hàng
-INSERT INTO Tickets (BookingId, SeatId)
+INSERT INTO Tickets (BookingId, SeatId, ShowtimeId)
 VALUES
-(1, 1), -- Ghế 1
-(1, 2), -- Ghế 2
-(2, 6); -- Ghế 6 (Ghế A1 của Hall 2)
+(1, 1, 1), -- Ghế 1
+(1, 2, 1), -- Ghế 2
+(2, 6, 2); -- Ghế 6 (Ghế A1 của Hall 2)

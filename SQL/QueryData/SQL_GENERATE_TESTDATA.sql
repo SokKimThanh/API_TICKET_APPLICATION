@@ -153,10 +153,11 @@ GO
 -- 8. SINH VÉ CHI TIẾT HÀNG LOẠT (TICKETS) BẰNG KỸ THUẬT UNIONS & ARITHMETIC
 -- Sinh khoảng 160.000 vé chi tiết (Tickets), đảm bảo các ghế đặt thuộc đúng phòng của suất chiếu đó.
 PRINT '--- 8. Sinh khoảng 160.000 vé chi tiết (Tickets) hợp lệ... ---';
-INSERT INTO Tickets (BookingId, SeatId, IsDeleted, CreatedAt)
+INSERT INTO Tickets (BookingId, SeatId, ShowtimeId, IsDeleted, CreatedAt)
 SELECT
     b.Id AS BookingId,
     (s.CinemaHallId - 1) * 50 + 1 + (b.Id % 25) AS SeatId,
+    s.Id AS ShowtimeId,
     0 AS IsDeleted,
     GETDATE() AS CreatedAt
 FROM Bookings b

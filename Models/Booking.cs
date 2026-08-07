@@ -17,6 +17,8 @@ public partial class Booking
 
     public DateTime? BookingTime { get; set; }
 
+    public DateOnly? BookingDate { get; set; }
+
     public DateTime? UpdatedAt { get; set; }
 
     public int? CreatedBy { get; set; }

@@ -63,7 +63,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống khi lấy lịch chiếu", StatusCodes.Status500InternalServerError);
             }
         }
@@ -90,7 +90,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống", StatusCodes.Status500InternalServerError);
             }
         }
@@ -142,7 +142,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống khi tạo lịch chiếu", StatusCodes.Status500InternalServerError);
             }
         }
@@ -201,7 +201,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống khi cập nhật lịch chiếu", StatusCodes.Status500InternalServerError);
             }
         }
@@ -272,7 +272,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống", StatusCodes.Status500InternalServerError);
             }
         }
@@ -303,7 +303,7 @@ namespace API_TICKET_APPLICATION.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Logger.LogError(ex, "Lỗi xảy ra trong hệ thống");
                 return ErrorResponse("Lỗi hệ thống khi xóa lịch chiếu", StatusCodes.Status500InternalServerError);
             }
         }
